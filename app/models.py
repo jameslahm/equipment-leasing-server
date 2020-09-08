@@ -1,3 +1,4 @@
+import re
 from . import db 
 from flask import request,current_app
 from datetime import datetime
@@ -24,7 +25,7 @@ class ApplicationStatus:
     AGREE = 0x02
     REFUSE = 0x04
 
-class ApplicationNotificationContent:
+class NotificationContent:
     LENDER_APPLICATION_APPLY_MESSAGE = ""
     LENDER_APPLICATION_AGREE_MESSAGE = ""
     LENDER_APPLICATION_REFUSE_MESSAGE = ""
@@ -60,7 +61,8 @@ class User(db.Model):
     avatar = db.Column('avatar',db.String(128))
     equipments = db.relationship('Equipment',backref='owner',lazy='dynamic')
     lender_app = db.relationship('LenderApplication',backref='user',lazy='dynamic')
-    
+    lab_name = db.Column('lab_name',db.String(64),default="")
+    lab_location = db.Column('lab_name',db.String(64),default="")
     def to_json(self):
         json_user={
             'id':self.id,
@@ -68,8 +70,11 @@ class User(db.Model):
             'email': self.email,
             'avatar': self.avatar,
             'confirmed': self.confirmed,
-            'role': self.role.name
+            'role': self.role.name,
         }
+        if(self.role.name == RoleName.LENDER):
+            json_user['lab_name']=self.lab_name
+            json_user['lab_location']=self.lab_location
         return json_user
 
     def generate_auth_token(self,expiration):
@@ -101,15 +106,20 @@ class Equipment(db.Model):
     confirmed_back = db.Column('comfirmed_back',db.Boolean,default=False)
 
     def to_json(self):
-        json_user={
-            'id':self.id,
-            'username':self.userName,
-            'email': self.email,
-            'avatar': self.avatar,
-            'confirmed': self.confirmed,
-            'role': self.role.name
+        json_equipment={
+            'id': self.id,
+            'status': self.status,
+            'return_time': self.return_time,
+            'name': self.name,
+            'owner': {
+                'lab_name': self.owner.lab_name,
+                'lab_location': self.owner.lab_location,
+                'email': self.owner.email,
+                'username': self.owner.username,
+                'id': self.owner_id
+            }
         }
-        return json_user
+        return json_equipment
 
 class LenderApplication(db.Model):
     __tablename__ = 'lenderApplication'
@@ -124,15 +134,19 @@ class LenderApplication(db.Model):
     ))
     
     def to_json(self):
-        json_user={
-            'id':self.id,
-            'username':self.userName,
-            'email': self.email,
-            'avatar': self.avatar,
-            'confirmed': self.confirmed,
-            'role': self.role.name
+        json_lenderApplication={
+            'id': self.id,
+            'status': self.status,
+            'lab_name': self.lab_name,
+            'lab_location': self.lab_location,
+            'candidate': {
+                'username': self.user.username,
+                'email': self.user.email,
+                'avatar': self.user.avatar,
+                'id': self.candidate_id
+            }
         }
-        return json_user
+        return json_lenderApplication
     
 class EquipmentPutOnApplication(db.Model):
     __tablename__ = 'equipemnt_puton_application'
@@ -148,19 +162,30 @@ class EquipmentPutOnApplication(db.Model):
     ))
     review_time = db.Column('review_time',db.datetime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    candidate = db.relationship('User',backref='putonApplications',lazy='dynamic',foreign_keys=candidate_id)
-    reviewer = db.relationship('User',backref='reviewPutonApplications',lazy='dynamic',foreign_keys=reviewer_id)
+    candidate = db.relationship('User',uselist=False,backref='putonApplications',lazy='dynamic',foreign_keys=candidate_id)
+    reviewer = db.relationship('User',uselist=False,backref='reviewPutonApplications',lazy='dynamic',foreign_keys=reviewer_id)
     
     def to_json(self):
-        json_user={
+        json_equipmentBorrowApplication={
             'id':self.id,
-            'username':self.userName,
-            'email': self.email,
-            'avatar': self.avatar,
-            'confirmed': self.confirmed,
-            'role': self.role.name
+            'status': self.status,
+            'reviewer' : {
+                'username': self.reviewer.username,
+                'email': self.reviewer.email,
+                'avatar': self.reviewer.avatar,
+                'id': self.reviewer_id
+            },
+            'usage': self.usage,
+            'application_time': self.application_time,
+            'review_time': self.review_time,
+            'candidate': {
+                'username': self.candidate.username,
+                'email': self.candidate.email,
+                'avatar': self.candidate.avatar,
+                'id': self.candidate_id
+            }
         }
-        return json_user
+        return json_equipmentBorrowApplication
 
 class EquipmentBorrowApplication(db.Model):
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
@@ -180,17 +205,29 @@ class EquipmentBorrowApplication(db.Model):
     reviewer = db.relationship('User',backref='reviewBorrowApplications',lazy='dynamic',foreign_keys=reviewer_id)
 
     def to_json(self):
-        json_user={
-            'id':self.id,
-            'username':self.userName,
-            'email': self.email,
-            'avatar': self.avatar,
-            'confirmed': self.confirmed,
-            'role': self.role.name
+        json_equipmentBorrowApplication={
+            'id': self.id,
+            'status': self.status,
+            'reviewer': {
+                'username': self.reviewer.username,
+                'email': self.reviewer.email,
+                'lab_name': self.reviewer.lab_name,
+                'lab_location': self.reviewer.lab_location,
+                'id':self.reviewer_id
+            },
+            'usage': self.usage,
+            'application_time': self.application_time,
+            'review_time': self.review_time,
+            'candidate': {
+                'username': self.candidate.username,
+                'email': self.candidate.email,
+                'avatar': self.candidate.avatar,
+                'id': self.candidate_id
+            }
         }
-        return json_user
+        return json_equipmentBorrowApplication
 
-class ApplicationNotification(db.Model):
+class Notification(db.Model):
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     sender_id = db.Column('sender_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     receiver_id = db.Column('receiver_id',db.Integer,db.ForeignKey('user_id',ondelte='cascade'))
@@ -204,12 +241,21 @@ class ApplicationNotification(db.Model):
     application_id = db.Column('application_id',db.Integer,db.ForeignKey(''))
 
     def to_json(self):
-        json_user={
-            'id':self.id,
-            'username':self.userName,
-            'email': self.email,
-            'avatar': self.avatar,
-            'confirmed': self.confirmed,
-            'role': self.role.name
+        json_notification={
+            'id': self.id,
+            'sender': {
+                'username': self.sender.username,
+                'email': self.sender.email,
+                'avatar': self.sender.avatar,
+                'id': self.sender_id
+            },
+            'content': self.content,
+            'notification_time': self.notification_time,
+            'isRead': self.isRead,
+            'application_id': self.application_id,
+            'type': self.type,
+            'result': 'agree' if self.result == ApplicationStatus.AGREE
+            else 'refuse' if self.result == ApplicationStatus.REFUSE 
+            else 'unreviewed'
         }
-        return json_user
+        return json_notification
