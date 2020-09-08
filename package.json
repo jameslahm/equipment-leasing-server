@@ -1,0 +1,13 @@
+{
+  "name": "equipment-leasing-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:jameslahm/equipment-leasing-server.git",
+  "author": "wangao <1366463855@qq.com>",
+  "license": "MIT",
+  "scripts": {
+    "dotenv": "export $(xargs< .env)"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
