@@ -8,6 +8,15 @@
   "scripts": {
     "dotenv": "export $(xargs< .env)"
   },
+  "husky": {
+    "hooks": {
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@commitlint/cli": "^9.1.2",
+    "@commitlint/config-conventional": "^9.1.2",
+    "husky": "^4.3.0"
+  }
 }
