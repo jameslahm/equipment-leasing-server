@@ -6,7 +6,7 @@ class Config():
     SECRET_KEY = os.getenv('SECRET_KEY') or "hard to guess"
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
-
+    FLASK_ADMIN = os.getenv('FLASK_ADMIN') or 'example-admin@example.com'
     @staticmethod
     def init_app(app):
         pass

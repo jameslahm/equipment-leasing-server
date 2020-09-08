@@ -1,5 +1,5 @@
 import re
-
+from jinja2.nodes import Not
 from sqlalchemy.sql.expression import null
 from . import db 
 from flask import request,current_app
@@ -64,7 +64,7 @@ class User(db.Model):
     equipments = db.relationship('Equipment',backref='owner',lazy='dynamic')
     lender_app = db.relationship('LenderApplication',backref='user',lazy='dynamic')
     lab_name = db.Column('lab_name',db.String(64),default="")
-    lab_location = db.Column('lab_name',db.String(64),default="")
+    lab_location = db.Column('lab_location',db.String(64),default="")
     def to_json(self):
         json_user={
             'id':self.id,
@@ -104,12 +104,15 @@ class User(db.Model):
         return User.query.filter(User.id == id).first()
     
     @staticmethod
+    def get_admin():
+        return User.query.filter(User.email == current_app.config['FLASK_ADMIN']).first()
+    
+    @staticmethod
     def search_byusername(u_name) :
         return User.query.filter(User.username.contains(u_name)).all()
     
     @staticmethod
-    def update_userinfo(id,token,body:dict) :
-        user_now = User.verify_auth_token(token)
+    def update_userinfo(id,user_now,body:dict) :
         user_update = User.query.filter(User.id == id).first()
         if user_now and user_update:
             if body.get('username'):
@@ -127,9 +130,9 @@ class User(db.Model):
             return null
         db.session.commit()
         return user_update
+   
     @staticmethod
-    def delete_user(id,token) :
-        user_now = User.verify_auth_token(token)
+    def delete_user(id,user_now) :
         user_update = User.query.filter(User.id == id).first()
         if user_now and user_update:
             if user_now.role.permission == Permission.ADMIN:
@@ -146,7 +149,7 @@ class Equipment(db.Model):
     owner_id = db.Column('owner_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     status = db.Column('status',db.Enum(EquipmentStatus.UNREVIEWED,
     EquipmentStatus.IDLE,EquipmentStatus.LEASE),nullable=False)
-    return_time = db.Column('return_time',db.datetime)
+    return_time = db.Column('return_time',db.Datetime)
     name = db.Column('name',db.String(64))
     usage = db.Column('usage',db.String(64))
     current_application_id = db.Column('current_app_id',db.Integer,
@@ -170,8 +173,7 @@ class Equipment(db.Model):
         return json_equipment
 
     @staticmethod
-    def search_equipments(token,body):
-        user_now = User.verify_auth_token(token)
+    def search_equipments(user_now,body):
         if user_now:
             equipments=Equipment.query
             if body.get('name'):
@@ -189,8 +191,7 @@ class Equipment(db.Model):
             return null
 
     @staticmethod
-    def update_equipment(id,token,body):
-        user_now = User.verify_auth_token(token)
+    def update_equipment(id,user_now,body):
         if user_now:
             equipment = Equipment.query.filter(Equipment.id == id).first()
             if equipment and (equipment.owner_id == user_now.id
@@ -207,8 +208,7 @@ class Equipment(db.Model):
             return null
     
     @staticmethod
-    def delete_equipment(id,token):
-        user_now = User.verify_auth_token(token)
+    def delete_equipment(id,user_now):
         equipment = Equipment.query.filter(Equipment.id == id)
         if user_now and equipment:
             if user_now.role.permission == Permission.ADMIN or \
@@ -246,19 +246,54 @@ class LenderApplication(db.Model):
         }
         return json_lenderApplication
     
+    @staticmethod
+    def on_changed_status(target,value,oldvalue,initiator):
+        User.update_userinfo(target.candidate_id,User.get_admin(),{
+            'role':0x02
+        })
+        
+    @staticmethod
+    def get_application(user_now,body):
+        if user_now:
+            if user_now.role.permission == Permission.ADMIN:
+                applications = LenderApplication.query
+            else:
+                applications = LenderApplication.query.filter(LenderApplication.candidate_id == id)
+            if body.get('status'):
+                s = 0x01 if body['status'] == 'unreviewed' \
+                else 0x02 if body['status'] == 'agree' else 0x04
+                applications = applications.filter(LenderApplication.status == s)
+            if body.get('candidate_id'):
+                applications = applications.filter(LenderApplication.candidate_id == body['candidate_id'])
+            if body.get('reviewer_id'):
+                applications = applications.filter(LenderApplication.reviewer_id == body['reviewer_id'])
+            return applications.all()
+        return null
+
+    @staticmethod
+    def update_application(id,user_now,body):
+        if user_now:
+            application = LenderApplication.query.filter(LenderApplication.id == id).first()
+            application.status=body.get('status')
+            db.session.commit()
+            return application
+        return null
+
+db.event.listen(LenderApplication.status,'set',LenderApplication.on_changed_status)
+
 class EquipmentPutOnApplication(db.Model):
     __tablename__ = 'equipemnt_puton_application'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     candidate_id = db.Column('candidate_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     usage = db.Column('usage',db.String(64))
     equipment_id = db.Column('equipment_id',db.Integer,db.ForeignKey('equipment.id',ondelete='cascade'))
-    application_time = db.Column('application_time',db.datetime)
+    application_time = db.Column('application_time',db.Datetime)
     status = db.Column('status',db.Enum(
         ApplicationStatus.UNREVIEWED,
         ApplicationStatus.AGREE,
         ApplicationStatus.REFUSE
     ))
-    review_time = db.Column('review_time',db.datetime)
+    review_time = db.Column('review_time',db.Datetime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     candidate = db.relationship('User',uselist=False,backref='putonApplications',lazy='dynamic',foreign_keys=candidate_id)
     reviewer = db.relationship('User',uselist=False,backref='reviewPutonApplications',lazy='dynamic',foreign_keys=reviewer_id)
@@ -284,21 +319,55 @@ class EquipmentPutOnApplication(db.Model):
             }
         }
         return json_equipmentBorrowApplication
+    @staticmethod
+    def on_changed_status(target,value,oldvalue,initiator):
+        target.review_time = datetime.now()
+
+    @staticmethod
+    def get_application(user_now,body):
+        if user_now:
+            if user_now.permission == Permission.ADMIN:
+                applications = EquipmentPutOnApplication.query
+            else:
+                applications = EquipmentPutOnApplication.query.filter(
+                    EquipmentPutOnApplication.candidate_id == user_now.id)
+            if body.get('status'):
+                s = 0x01 if body['status'] == 'unreviewed' \
+                else 0x02 if body['status'] == 'agree' else 0x04
+                applications = applications.filter(EquipmentPutOnApplication.status == s)
+            if body.get('candidate_id'):
+                applications = applications.filter(EquipmentPutOnApplication.candidate_id == body['candidate_id'])
+            if body.get('reviewer_id'):
+                applications = applications.filter(EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
+            return applications.all()            
+        return null
+    
+    @staticmethod
+    def update_application(id,user_now,body):
+        if user_now:
+            application = EquipmentPutOnApplication.query.filter(
+                EquipmentPutOnApplication.id == id).first()
+            application.status=body.get('status')
+            db.session.commit()
+            return application
+        return null
+
+db.event.listen(EquipmentPutOnApplication.status,'set',EquipmentPutOnApplication.on_changed_status)
 
 class EquipmentBorrowApplication(db.Model):
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     candidate_id = db.Column('candidate_id',db.ForeignKey('user.id',ondelete='cascade'))
     candidate = db.relationship('User',backref='borrowApplications',lazy='dynamic',foreign_keys=candidate_id)
-    return_time = db.Column('review_time',db.datetime)
+    return_time = db.Column('review_time',db.Datetime)
     usage = db.Column('usage',db.String(64))
     equipment_id = db.Column('equipment_id',db.Integer,db.ForeignKey('equipment.id',ondelete='cascade'))
-    application_time = db.Column('application_time',db.datetime)
+    application_time = db.Column('application_time',db.Datetime)
     status = db.Column('status',db.Enum(
         ApplicationStatus.UNREVIEWED,
         ApplicationStatus.AGREE,
         ApplicationStatus.REFUSE
     ))
-    review_time = db.Column('review_time',db.datetime)
+    review_time = db.Column('review_time',db.Datetime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     reviewer = db.relationship('User',backref='reviewBorrowApplications',lazy='dynamic',foreign_keys=reviewer_id)
 
@@ -325,6 +394,42 @@ class EquipmentBorrowApplication(db.Model):
         }
         return json_equipmentBorrowApplication
 
+    @staticmethod
+    def get_application(user_now,body):
+        if user_now:
+            if user_now.permission == Permission.ADMIN:
+                applications = EquipmentBorrowApplication.query
+            else:
+                if user_now.permission == Permission.LENDER:
+                    applications = EquipmentBorrowApplication.query.filter(
+                        EquipmentBorrowApplication.reviewer_id == user_now.id)
+                else:
+                    applications = EquipmentBorrowApplication.query.filter(
+                        EquipmentBorrowApplication.candidate_id == user_now.id)
+
+            if body.get('status'):
+                s = 0x01 if body['status'] == 'unreviewed' \
+                else 0x02 if body['status'] == 'agree' else 0x04
+                applications = applications.filter(EquipmentBorrowApplication.status == s)
+            if body.get('candidate_id'):
+                applications = applications.filter(EquipmentBorrowApplication.candidate_id == body['candidate_id'])
+            if body.get('reviewer_id'):
+                applications = applications.filter(EquipmentBorrowApplication.reviewer_id == body['reviewer_id'])
+            return applications.all()            
+        return null
+    
+    @staticmethod
+    def update_application(id,user_now,body):
+        if user_now:
+            application = EquipmentBorrowApplication.query.filter(
+                EquipmentBorrowApplication.id == id).first()
+            application.status = body.get('status')
+            application.reviewer_id = user_now.id
+            application.review_time = datetime.now()
+            db.session.commit()
+            return application
+        return null
+
 class Notification(db.Model):
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     sender_id = db.Column('sender_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
@@ -332,14 +437,30 @@ class Notification(db.Model):
     sender = db.relationship('User',backref='sended_Notifications',lazy='dynamic',foreign_keys=sender_id)
     receiver = db.relationship('User',backref='received_Notifications',lazy='dynamic',foreign_keys=receiver_id)
     content = db.Column('content',db.String(64))
-    notification_time = db.Column('notification_time',db.datetime)
+    notification_time = db.Column('notification_time',db.Datetime)
     isRead = db.Column('isRead',db.Boolean)
-    type = db.Column('type',ApplicationType)
-    result = db.Column('result',ApplicationStatus)
-    application_id = db.Column('application_id',db.Integer,db.ForeignKey(''))
+    type = db.Column('type',db.enum(
+            ApplicationType.APPLY_BORROW,
+            ApplicationType.APPLY_LENDER,
+            ApplicationType.APPLY_PUTON
+        )
+    )
+    application_id = db.Column('application_id',db.Integer)
 
     def to_json(self):
-        json_notification={
+        if self.type == ApplicationType.APPLY_BORROW:
+            application = EquipmentBorrowApplication.query.filter(
+                EquipmentBorrowApplication.id == self.application_id
+            ).first()
+        if self.type == ApplicationType.APPLY_LENDER:
+            application = LenderApplication.query.filter(
+                LenderApplication.id == self.application_id
+            ).first()
+        else:
+            application = EquipmentPutOnApplication.query.filter(
+                EquipmentPutOnApplication.id == self.application_id
+            ).first()
+        json_notification = {
             'id': self.id,
             'sender': {
                 'username': self.sender.username,
@@ -352,8 +473,38 @@ class Notification(db.Model):
             'isRead': self.isRead,
             'application_id': self.application_id,
             'type': self.type,
-            'result': 'agree' if self.result == ApplicationStatus.AGREE
-            else 'refuse' if self.result == ApplicationStatus.REFUSE 
+            'result': 'agree' if application.status == ApplicationStatus.AGREE
+            else 'refuse' if application.status == ApplicationStatus.REFUSE 
             else 'unreviewed'
         }
         return json_notification
+    
+    @staticmethod
+    def get_notification(user_now,body):
+        if user_now:
+            if user_now.permission == Permission.ADMIN:            
+                notifications = Notification.query
+            else:
+                notifications = Notification.query.filter(Notification.receiver_id == user_now.id)
+            if body.get('isRead'):
+                notifications = notifications.filter(Notification.isRead == body['isRead'])
+            return notifications.all()
+        return null
+
+    @staticmethod
+    def update_notification(id,user_now,body):
+        if user_now:
+            notification = Notification.query.filter(Notification.id == id).first()
+            notification.isRead = body.get('isRead')
+            db.session.commit()
+            return notification
+        return null
+
+    @staticmethod
+    def delete_notification(id,user_now):
+        if user_now:
+            notification = Notification.query.filter(Notification.id == id)
+            db.session.delete(notification)
+            db.session.commit()
+            return notification
+        return null
