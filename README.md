@@ -1,3 +1,9 @@
+## Install Vscode Extensions
+```
+pylance
+```
+
+
 ## Switch to virtual environment
 ```bash
 virtualenv venv
