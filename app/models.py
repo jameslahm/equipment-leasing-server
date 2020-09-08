@@ -1,4 +1,6 @@
 import re
+
+from sqlalchemy.sql.expression import null
 from . import db 
 from flask import request,current_app
 from datetime import datetime
@@ -76,6 +78,17 @@ class User(db.Model):
             json_user['lab_name']=self.lab_name
             json_user['lab_location']=self.lab_location
         return json_user
+    
+    @property
+    def password(self):
+        raise AttributeError("password is not readable")
+
+    @password.setter
+    def password(self, password):
+        self.password = generate_password_hash(password)
+
+    def verify_password(self,password):
+        return check_password_hash(self.password_hash,password)
 
     def generate_auth_token(self,expiration):
         s=TimedJSONWebSignatureSerializer(current_app.config['SECRET_KEY'],expires_in=expiration)
@@ -88,9 +101,44 @@ class User(db.Model):
             id=s.loads(token.encode('utf-8'))
         except:
             return False
-        return User.query.filter_by(id=id).first()
+        return User.query.filter(User.id == id).first()
     
-
+    @staticmethod
+    def search_byusername(u_name) :
+        return User.query.filter(User.username.contains(u_name)).all()
+    
+    @staticmethod
+    def update_userinfo(id,token,body:dict) :
+        user_now = User.verify_auth_token(token)
+        user_update = User.query.filter(User.id == id).first()
+        if user_now and user_update:
+            if body.get('username'):
+                user_update.username = body.get('username')
+            if body.get('password'):
+                user_update.password = body.get('username')
+            if body.get('avatar'):
+                user_update.avatar = body.get('avatar')
+            if user_now.role.permission == Permission.ADMIN :
+                if body.get('confirmed'):
+                    user_update.confirmed = body['confirmed']
+                if body.get('role'):
+                    user_update.role_id = body['role']
+        else:
+            return null
+        db.session.commit()
+        return user_update
+    @staticmethod
+    def delete_user(id,token) :
+        user_now = User.verify_auth_token(token)
+        user_update = User.query.filter(User.id == id).first()
+        if user_now and user_update:
+            if user_now.role.permission == Permission.ADMIN:
+                record = User.query.filter(User.id == id).first()
+                db.session.delete(record)
+                db.session.commit()
+                return record
+        else:
+            return null
     
 class Equipment(db.Model):
     __tablename__ = 'equipment'
@@ -120,6 +168,56 @@ class Equipment(db.Model):
             }
         }
         return json_equipment
+
+    @staticmethod
+    def search_equipments(token,body):
+        user_now = User.verify_auth_token(token)
+        if user_now:
+            equipments=Equipment.query
+            if body.get('name'):
+                equipments = equipments.filter(Equipment.name.contains(body['name']))
+            if body.get('lab_location'):
+                equipments = equipments.filter(Equipment.lab_location.contains(body['lab_location']))
+            if body.get('status'):
+                s = 0 if body['status'] == 'unreviewed' \
+                else 1 if body['status'] == 'idle' else 2
+                equipments = equipments.filter(Equipment.status == s)
+            if body.get('owner_id'):
+                equipments = equipments.filter(Equipment.owner_id == body['owner_id'])
+            return equipments.all()
+        else :
+            return null
+
+    @staticmethod
+    def update_equipment(id,token,body):
+        user_now = User.verify_auth_token(token)
+        if user_now:
+            equipment = Equipment.query.filter(Equipment.id == id).first()
+            if equipment and (equipment.owner_id == user_now.id
+            or user_now.role.permission == Permission.ADMIN):
+                if body.get('name'):
+                    equipment.name = body['name']
+                if body.get('usage'):
+                    equipment.usage = body['usage']
+                db.session.commit()
+                return equipment
+            else:
+                return null
+        else:
+            return null
+    
+    @staticmethod
+    def delete_equipment(id,token):
+        user_now = User.verify_auth_token(token)
+        equipment = Equipment.query.filter(Equipment.id == id)
+        if user_now and equipment:
+            if user_now.role.permission == Permission.ADMIN or \
+            equipment.owner_id == user_now.id :
+                record = Equipment.query.filter(Equipment.id == id).first()
+                db.session.delete(record)
+                db.session.commit()
+                return record     
+        return null
 
 class LenderApplication(db.Model):
     __tablename__ = 'lenderApplication'
