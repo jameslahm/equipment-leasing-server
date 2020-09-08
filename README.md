@@ -46,3 +46,7 @@ flask db migrate -m "your comment"
 
 flask db upgrade
 ```
+
+## Commit Message
+see https://www.conventionalcommits.org/en/v1.0.0/
+see http://www.ruanyifeng.com/blog/2016/01/commit_message_change_log.html
