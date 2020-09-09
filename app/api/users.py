@@ -22,7 +22,22 @@ def send_mail(to,subject,template,token):
     thr = Thread(target=send_async_email,args=[app,msg])
     thr.start()
     return thr
-    
+
+@api.route('/login',methods=['POST'])
+def login():
+    data = request.json
+    if data is None:
+        return jsonify({"error":"bad request"}),400
+    username = data.get('username')
+    password = data.get('password')
+    user = User.query.filter_by(username = username).first()
+    if user is not None and user.verify_password(password) :
+        jwt = user.generate_auth_token(expiration=86400*365)
+        user_confirmed = user.to_json()
+        user_confirmed['token'] = jwt
+        return jsonify(user_confirmed),200
+    return jsonify({'error':"invalid username or password"}),401
+
 @api.route('/register',methods=['POST'])
 def register():
     print('enter')
@@ -52,4 +67,3 @@ def register():
         send_mail(email,'确认你的账户','/confirm',jwt)
         print(User_uncomfirmed)
         return jsonify(User_uncomfirmed)
-
