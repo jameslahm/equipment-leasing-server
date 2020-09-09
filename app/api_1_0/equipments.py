@@ -14,8 +14,8 @@ def get_all():
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
     if not current_user:
         return make_response(json.dumps({"error":"error message"}), 401)
-    page = request.args.get("page")
-    page_size = request.args.get("page_size")
+    page = request.args.get("page", 1)
+    page_size = request.args.get("page_size", 10)
     elist = Equipment.search_byusername(current_user, request.args)
     anslist = []
     for i in range((page-1)*page_size, min(len(elist),page*page_size)):
