@@ -1,42 +1,38 @@
-from flask import Flask, jsonify, Response
-from flask import json
-from flask.globals import request
+from flask import Blueprint,Response,render_template,jsonify,request
+from flask import request,abort,make_response
+from flask import json, current_app
+from flask.helpers import flash, url_for
 from sqlalchemy.sql.expression import null
-from ..models import Equipment, User
+from ..models import Equipment,User
 from . import api
+from .. import db
 
 @api.route('/equipments',methods=['GET'])
-def get_all():
+def get_equiments():
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
     if not current_user:
-        return Response(jsonify({"error":"unauthorized"}), 401)
-    page = request.args.get("page", 1)
-    page_size = request.args.get("page_size", 10)
-    elist = Equipment.search_byusername(current_user, request.args)
-    anslist = []
-    for i in range((page-1)*page_size, min(len(elist),page*page_size)):
-        anslist.append(elist[i].to_json())
-    return Response(jsonify({"equipments":anslist,"total":len(anslist)}))
-    
+        return jsonify({"error":"unauthorized"}), 401
+    anslist,total = Equipment.search_equipments(current_user, request.args)
+    return jsonify({"equipments":[x.to_json() for x in anslist],"total":total}),200
 
 
 @api.route('/equipments/<int:id>',methods=["GET","PUT","DELETE"])
 def equipment_operate(id):
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
     if not current_user:
-        return Response(jsonify({"error":"unauthorized"}), 401)
+        return jsonify({"error":"unauthorized"}), 401
     if request.method == "GET":
         equipment = Equipment.query.filter_by(id=id).first()
-        if equipment is None:
-            return Response(jsonify({}))
-        return Response(jsonify(equipment.to_json()))
+        if equipment is not None:
+            return jsonify(equipment.to_json()),200
+        return jsonify({'error':'no such equipment'}),400
     if request.method == "PUT":
-        update = Equipment.update_equipment(id, current_user, request.form)
-        if update == null:
-            return Response(jsonify({"error":"no such equipment"}, 400))
-        return Response(jsonify(Equipment.query.get(id).to_json()))
+        update = Equipment.update_equipment(id, current_user, request.json)
+        if update is null:
+            return jsonify({"error":"no such equipment"}, 400)
+        return jsonify(update.to_json()),200
     if request.method == "DELETE":
         delete = Equipment.delete_equipment(id, current_user)
         if delete == null:
-            return Response(jsonify({"error":"no such equipment"}), 400)
-        return Response(jsonify(delete.to_json()))
+            return jsonify({"error":"no such equipment"}), 400
+        return jsonify(delete),200
