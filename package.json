@@ -6,7 +6,8 @@
   "author": "wangao <1366463855@qq.com>",
   "license": "MIT",
   "scripts": {
-    "dotenv": "export $(xargs< .env)"
+    "dotenv": "export $(xargs< .env)",
+    "start":"dotenv flask run"
   },
   "husky": {
     "hooks": {
@@ -17,7 +18,7 @@
   "devDependencies": {
     "@commitlint/cli": "^9.1.2",
     "@commitlint/config-conventional": "^9.1.2",
-    "cz-conventional-changelog": "^3.3.0",
+    "dotenv-cli": "^3.2.0",
     "husky": "^4.3.0"
   },
   "config": {
