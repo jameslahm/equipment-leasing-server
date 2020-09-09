@@ -45,11 +45,9 @@ class Role(db.Model):
     __tablename__ = 'role'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     permission = db.Column('permission',
-    db.Enum(Permission.NORMAL,Permission.LENDER,Permission.ADMIN),
+    db.Integer,
     unique=False)
-    name = db.Column('name',db.Enum(
-        RoleName.ADMIN,RoleName.NORMAL,RoleName.LENDER
-    ),unique=True)
+    name = db.Column('name',db.Integer,unique=True)
     users = db.relationship('User',backref='role',lazy='dynamic')
 
 class User(db.Model):
@@ -147,8 +145,7 @@ class Equipment(db.Model):
     __tablename__ = 'equipment'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     owner_id = db.Column('owner_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    status = db.Column('status',db.Enum(EquipmentStatus.UNREVIEWED,
-    EquipmentStatus.IDLE,EquipmentStatus.LEASE),nullable=False)
+    status = db.Column('status',db.Integer,nullable=False)
     return_time = db.Column('return_time',db.Datetime)
     name = db.Column('name',db.String(64))
     usage = db.Column('usage',db.String(64))
@@ -225,12 +222,7 @@ class LenderApplication(db.Model):
     candidate_id = db.Column('candidate_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     lab_name = db.Column('lab_name',db.String(64))
     lab_location = db.Column('lab_location',db.String(64))
-    status = db.Column('status',db.Enum(
-        ApplicationStatus.UNREVIEWED,
-        ApplicationStatus.AGREE,
-        ApplicationStatus.REFUSE
-    ))
-    
+    status = db.Column('status',db.Integer)
     def to_json(self):
         json_lenderApplication={
             'id': self.id,
@@ -288,11 +280,7 @@ class EquipmentPutOnApplication(db.Model):
     usage = db.Column('usage',db.String(64))
     equipment_id = db.Column('equipment_id',db.Integer,db.ForeignKey('equipment.id',ondelete='cascade'))
     application_time = db.Column('application_time',db.Datetime)
-    status = db.Column('status',db.Enum(
-        ApplicationStatus.UNREVIEWED,
-        ApplicationStatus.AGREE,
-        ApplicationStatus.REFUSE
-    ))
+    status = db.Column('status',db.Integer)
     review_time = db.Column('review_time',db.Datetime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     candidate = db.relationship('User',uselist=False,backref='putonApplications',lazy='dynamic',foreign_keys=candidate_id)
@@ -362,11 +350,7 @@ class EquipmentBorrowApplication(db.Model):
     usage = db.Column('usage',db.String(64))
     equipment_id = db.Column('equipment_id',db.Integer,db.ForeignKey('equipment.id',ondelete='cascade'))
     application_time = db.Column('application_time',db.Datetime)
-    status = db.Column('status',db.Enum(
-        ApplicationStatus.UNREVIEWED,
-        ApplicationStatus.AGREE,
-        ApplicationStatus.REFUSE
-    ))
+    status = db.Column('status',db.Integer)
     review_time = db.Column('review_time',db.Datetime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     reviewer = db.relationship('User',backref='reviewBorrowApplications',lazy='dynamic',foreign_keys=reviewer_id)
@@ -439,12 +423,7 @@ class Notification(db.Model):
     content = db.Column('content',db.String(64))
     notification_time = db.Column('notification_time',db.Datetime)
     isRead = db.Column('isRead',db.Boolean)
-    type = db.Column('type',db.enum(
-            ApplicationType.APPLY_BORROW,
-            ApplicationType.APPLY_LENDER,
-            ApplicationType.APPLY_PUTON
-        )
-    )
+    type = db.Column('type',db.Integer)
     application_id = db.Column('application_id',db.Integer)
 
     def to_json(self):
