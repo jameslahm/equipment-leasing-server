@@ -137,8 +137,16 @@ class User(db.Model):
         return User.query.filter(User.email == current_app.config['FLASK_ADMIN']).first()
 
     @staticmethod
-    def search_byusername(u_name):
-        return User.query.filter(User.username.contains(u_name)).all()
+    def search_byusername(body):
+        if body.get('username'):
+            u_name = body.get('username')
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = User.query.filter(User.username.contains(u_name)).paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
+        return null
 
     @staticmethod
     def update_userinfo(id, user_now, body: dict):
@@ -226,7 +234,12 @@ class Equipment(db.Model):
             if body.get('owner_id'):
                 equipments = equipments.filter(
                     Equipment.owner_id == body['owner_id'])
-            return equipments.all()
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = equipments.paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
         else:
             return null
 
@@ -309,7 +322,12 @@ class LenderApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     LenderApplication.reviewer_id == body['reviewer_id'])
-            return applications.all()
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = applications.paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
         return null
 
     @staticmethod
@@ -391,7 +409,12 @@ class EquipmentPutOnApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
-            return applications.all()
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = applications.paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
         return null
 
     @staticmethod
@@ -553,7 +576,12 @@ class Notification(db.Model):
             if body.get('isRead'):
                 notifications = notifications.filter(
                     Notification.isRead == body['isRead'])
-            return notifications.all()
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = notifications.paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
         return null
 
     @staticmethod

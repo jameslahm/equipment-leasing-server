@@ -67,3 +67,5 @@ def register():
         send_mail(email,'确认你的账户','/confirm',jwt)
         print(User_uncomfirmed)
         return jsonify(User_uncomfirmed)
+
+
