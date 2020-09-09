@@ -3,10 +3,11 @@ from flask import request,abort,make_response
 from flask import json, current_app
 from flask.helpers import flash, url_for
 from flask_mail import Mail, Message
-from ..models import User
+from ..models import User,Role
 from . import api
 from .. import db
 from threading import Thread
+
 
 def send_async_email(app,msg):
     mail=Mail(app)
@@ -16,7 +17,8 @@ def send_async_email(app,msg):
 def send_mail(to,subject,template,token):
     app = current_app._get_current_object()
     msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+subject,sender=current_app.config['MAIL_USERNAME'],recipients=[to])
-    msg.html = render_template(template + '.txt',token=token)
+    print(template)
+    msg.html = "<h3>请确认注册</h3><a href='http://127.0.0.1/confirm?confirm_token={token}'>http://127.0.0.1/confirm</a>"
     thr = Thread(target=send_async_email,args=[app,msg])
     thr.start()
     return thr
