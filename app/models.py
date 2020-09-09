@@ -283,8 +283,8 @@ class EquipmentPutOnApplication(db.Model):
     status = db.Column('status',db.Integer)
     review_time = db.Column('review_time',db.DateTime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    candidate = db.relationship('User',uselist=False,backref='putonApplications',lazy='dynamic',foreign_keys=candidate_id)
-    reviewer = db.relationship('User',uselist=False,backref='reviewPutonApplications',lazy='dynamic',foreign_keys=reviewer_id)
+    candidate = db.relationship('User',backref='putonApplications',lazy='select',foreign_keys=candidate_id)
+    reviewer = db.relationship('User',backref='reviewPutonApplications',lazy='select',foreign_keys=reviewer_id)
     
     def to_json(self):
         json_equipmentBorrowApplication={
@@ -346,7 +346,7 @@ class EquipmentBorrowApplication(db.Model):
     __tablename__ = 'equipment_borrow_application'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     candidate_id = db.Column('candidate_id',db.ForeignKey('user.id',ondelete='cascade'))
-    candidate = db.relationship('User',backref='borrowApplications',lazy='dynamic',foreign_keys=candidate_id)
+    candidate = db.relationship('User',backref='borrowApplications',lazy='select',foreign_keys=candidate_id)
     return_time = db.Column('return_time',db.DateTime)
     usage = db.Column('usage',db.String(64))
     equipment_id = db.Column('equipment_id',db.Integer,db.ForeignKey('equipment.id',ondelete='cascade'))
@@ -354,7 +354,7 @@ class EquipmentBorrowApplication(db.Model):
     status = db.Column('status',db.Integer)
     review_time = db.Column('review_time',db.DateTime)
     reviewer_id = db.Column('reviewer_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    reviewer = db.relationship('User',backref='reviewBorrowApplications',lazy='dynamic',foreign_keys=reviewer_id)
+    reviewer = db.relationship('User',backref='reviewBorrowApplications',lazy='select',foreign_keys=reviewer_id)
 
     def to_json(self):
         json_equipmentBorrowApplication={
@@ -420,8 +420,8 @@ class Notification(db.Model):
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     sender_id = db.Column('sender_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     receiver_id = db.Column('receiver_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    sender = db.relationship('User',backref='sended_Notifications',lazy='dynamic',foreign_keys=sender_id)
-    receiver = db.relationship('User',backref='received_Notifications',lazy='dynamic',foreign_keys=receiver_id)
+    sender = db.relationship('User',backref='sended_Notifications',lazy='select',foreign_keys=sender_id)
+    receiver = db.relationship('User',backref='received_Notifications',lazy='select',foreign_keys=receiver_id)
     content = db.Column('content',db.String(64))
     notification_time = db.Column('notification_time',db.DateTime)
     isRead = db.Column('isRead',db.Boolean)
