@@ -11,7 +11,7 @@ from .__init__ import api
 def get_all():
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
     if not current_user:
-        return jsonify({"error":"error message"})
+        return jsonify({"error":"error message"}), 401
     page = request.args.get("page", 1)
     page_size = request.args.get("page_size", 10)
     elist = Equipment.search_byusername(current_user, request.args)
@@ -22,11 +22,11 @@ def get_all():
     
 
 
-@api.route('/equipments/<id>',methods=["GET","PUT","DELETE"])
+@api.route('/equipments/<int:id>',methods=["GET","PUT","DELETE"])
 def equipment_operate(id):
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
     if not current_user:
-        return jsonify({"error":"error message"})
+        return jsonify({"error":"error message"}), 401
     if request.method == "GET":
         return jsonify(Equipment.query.get(id).to_json())
     if request.method == "PUT":
