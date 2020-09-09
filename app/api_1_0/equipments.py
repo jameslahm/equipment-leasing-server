@@ -16,7 +16,7 @@ def get_all():
     elist = Equipment.search_byusername(current_user, request.args)
     anslist = []
     for i in range((page-1)*page_size, min(len(elist),page*page_size)):
-        anslist.append(elist[i])
+        anslist.append(elist[i].to_json())
     return Response(jsonify({"equipments":anslist,"total":len(anslist)}))
     
 
