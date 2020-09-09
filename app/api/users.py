@@ -1,4 +1,4 @@
-from flask import Blueprint,Response,render_template,jsonify
+from flask import Blueprint,Response,render_template,jsonify,request
 from flask import request,abort,make_response
 from flask import json, current_app
 from flask.helpers import flash, url_for
@@ -24,7 +24,9 @@ def send_mail(to,subject,template,token):
 @api.route('/register',methods=['POST'])
 def register():
     print('enter')
-    data = json.loads(request.get_data(as_text=True))
+    data=request.json
+    if data is None:
+        return jsonify({"error":"bad request"}),400
     email = data.get('email')
     username = data.get('username')
     password = data.get('password')
@@ -34,7 +36,10 @@ def register():
     else:
         user = User.query.filter_by(username=username).first()
         if user is not None:
-            return Response(jsonify({'error':'this username has been registered'}),400)
+            return jsonify({'error':'this username has been registered'}),400
+        print(username)
+        print(email)
+        print(password)
         user = User(email = email,username = username,password = password)
         print('exit')
         jwt = user.generate_auth_token(expiration=86400*365)
@@ -43,5 +48,6 @@ def register():
         db.session.add(user)
         db.session.commit()
         send_mail(email,'确认你的账户','/confirm',jwt)
+        print(User_uncomfirmed)
         return jsonify(User_uncomfirmed)
 
