@@ -20,9 +20,9 @@ class RoleName:
 
 
 class EquipmentStatus:
-    UNREVIEWED = 0
-    IDLE = 1
-    LEASE = 2
+    UNREVIEWED = 'unreviewed'
+    IDLE = 'idle'
+    LEASE = 'lease'
 
 
 class ApplicationStatus:
@@ -190,7 +190,7 @@ class Equipment(db.Model):
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     owner_id = db.Column(db.Integer, db.ForeignKey(
         'users.id', ondelete='cascade'))
-    status = db.Column('status', db.Integer, nullable=False)
+    status = db.Column('status', db.String(64), default=EquipmentStatus.UNREVIEWED)
     return_time = db.Column('return_time', db.DateTime)
     name = db.Column('name', db.String(64))
     usage = db.Column('usage', db.String(64))
@@ -217,7 +217,8 @@ class Equipment(db.Model):
                 'email': self.owner.email,
                 'username': self.owner.username,
                 'id': self.owner_id
-            }
+            },
+            'usage': self.usage
         }
         return json_equipment
     @staticmethod
@@ -267,6 +268,15 @@ class Equipment(db.Model):
                 db.session.commit()
                 return equipment
             else:
+                if equipment:
+                    borrower = EquipmentBorrowApplication.query.filter_by(id=equipment.current_application_id).first().candidate
+                    if borrower.id == user_now.id:
+                        if body.get('confirm_back')==True:
+                            equipment.confirm_back = True
+                            equipment.status = EquipmentStatus.IDLE
+                            equipment.current_application_id = None 
+                            db.session.commit()
+                            return equipment                      
                 return null
         else:
             return null
@@ -533,6 +543,7 @@ class EquipmentBorrowApplication(db.Model):
             equipment = Equipment.query.filter_by(id=target.equipment_id).first()
             equipment.confirmed_back = False
             equipment.current_application_id = target.id
+            equipment.status = EquipmentStatus.LEASE
     
     @staticmethod
     def get_application(user_now, body):
