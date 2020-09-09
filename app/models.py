@@ -5,7 +5,7 @@ from flask import current_app
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer
-
+from copy import deepcopy
 
 class Permission:
     NORMAL = 0x01
@@ -92,7 +92,8 @@ class User(db.Model):
                 self.role=Role.query.filter_by(permission=Permission.ADMIN).first()
             else:
                 self.role = Role.query.filter_by(permission=Permission.NORMAL).first()
-    
+            self.role_id = self.role.id
+
     def to_json(self):
         json_user = {
             'id': self.id,
@@ -140,13 +141,15 @@ class User(db.Model):
     def search_byusername(body):
         if body.get('username'):
             u_name = body.get('username')
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
-            pa = User.query.filter(User.username.contains(u_name)).paginate(
-                page,page_size,error_out=False
-            )
-            return pa.items,pa.total
-        return null
+        else:
+            u_name = ''
+        page = body['page'] if body.get('page') else 1
+        page_size = body['page_size'] if body.get('page_size') else 10
+        pa = User.query.filter(User.username.contains(u_name)).paginate(
+            int(page),int(page_size),error_out=False
+        )
+        return pa.items,pa.total
+        
 
     @staticmethod
     def update_userinfo(id, user_now, body: dict):
@@ -159,10 +162,11 @@ class User(db.Model):
             if body.get('avatar'):
                 user_update.avatar = body.get('avatar')
             if user_now.role.permission == Permission.ADMIN:
-                if body.get('confirmed'):
+                if body.get('confirmed')==True or body.get('confirmed')==False:
                     user_update.confirmed = body['confirmed']
                 if body.get('role'):
-                    user_update.role_id = body['role']
+                    user_update.role = Role.query.filter_by(name=body['role']).first()
+                    user_update.role_id = user_update.role.id
         else:
             return null
         db.session.commit()
@@ -173,8 +177,8 @@ class User(db.Model):
         user_update = User.query.filter(User.id == id).first()
         if user_now and user_update:
             if user_now.role.permission == Permission.ADMIN:
-                record = User.query.filter(User.id == id).first()
-                db.session.delete(record)
+                record = User.query.filter(User.id == id).first().to_json()
+                User.query.filter(User.id == id).delete()
                 db.session.commit()
                 return record
         else:
@@ -266,8 +270,8 @@ class Equipment(db.Model):
         if user_now and equipment:
             if user_now.role.permission == Permission.ADMIN or \
                     equipment.owner_id == user_now.id:
-                record = Equipment.query.filter(Equipment.id == id).first()
-                db.session.delete(record)
+                record = Equipment.query.filter(Equipment.id == id).first().to_json()
+                Equipment.query.filter(Equipment.id == id).delete()
                 db.session.commit()
                 return record
         return null
@@ -597,8 +601,8 @@ class Notification(db.Model):
     @staticmethod
     def delete_notification(id, user_now):
         if user_now:
-            notification = Notification.query.filter(Notification.id == id)
-            db.session.delete(notification)
+            notification = Notification.query.filter(Notification.id == id).first().to_json()
+            Notification.query.filter(Notification.id == id).delete()
             db.session.commit()
             return notification
         return null
