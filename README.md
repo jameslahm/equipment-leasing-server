@@ -26,7 +26,7 @@ pip freeze > requirements.txt
 ## Start Development
 ```bash
 # start development server
-yarn start
+flask run
 ```
 
 ## Play with Shell

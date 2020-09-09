@@ -5,10 +5,7 @@
   "repository": "git@github.com:jameslahm/equipment-leasing-server.git",
   "author": "wangao <1366463855@qq.com>",
   "license": "MIT",
-  "scripts": {
-    "dotenv": "export $(xargs< .env)",
-    "start":"dotenv flask run"
-  },
+  "scripts": {},
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
@@ -18,7 +15,6 @@
   "devDependencies": {
     "@commitlint/cli": "^9.1.2",
     "@commitlint/config-conventional": "^9.1.2",
-    "dotenv-cli": "^3.2.0",
     "husky": "^4.3.0"
   },
   "config": {
