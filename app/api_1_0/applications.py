@@ -1,7 +1,5 @@
 from crypt import methods
-from email import header
 import json
-from flask import Flask
 from flask.globals import request
 from flask.helpers import make_response
 from .__init__ import api
