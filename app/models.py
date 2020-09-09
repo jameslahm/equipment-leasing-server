@@ -150,7 +150,7 @@ class Equipment(db.Model):
     name = db.Column('name',db.String(64))
     usage = db.Column('usage',db.String(64))
     current_application_id = db.Column('current_app_id',db.Integer,
-    db.ForeignKey('equipmentBorrowApplication.id',ondelete='cascade'))
+    db.ForeignKey('equipment_borrow_application.id',ondelete='cascade'))
     confirmed_back = db.Column('comfirmed_back',db.Boolean,default=False)
 
     def to_json(self):
@@ -343,6 +343,7 @@ class EquipmentPutOnApplication(db.Model):
 db.event.listen(EquipmentPutOnApplication.status,'set',EquipmentPutOnApplication.on_changed_status)
 
 class EquipmentBorrowApplication(db.Model):
+    __tablename__ = 'equipment_borrow_application'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     candidate_id = db.Column('candidate_id',db.ForeignKey('user.id',ondelete='cascade'))
     candidate = db.relationship('User',backref='borrowApplications',lazy='dynamic',foreign_keys=candidate_id)
@@ -415,9 +416,10 @@ class EquipmentBorrowApplication(db.Model):
         return null
 
 class Notification(db.Model):
+    __tablename__ = 'notification'
     id = db.Column('id',db.Integer,primary_key=True,autoincrement=True)
     sender_id = db.Column('sender_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
-    receiver_id = db.Column('receiver_id',db.Integer,db.ForeignKey('user_id',ondelete='cascade'))
+    receiver_id = db.Column('receiver_id',db.Integer,db.ForeignKey('user.id',ondelete='cascade'))
     sender = db.relationship('User',backref='sended_Notifications',lazy='dynamic',foreign_keys=sender_id)
     receiver = db.relationship('User',backref='received_Notifications',lazy='dynamic',foreign_keys=receiver_id)
     content = db.Column('content',db.String(64))
