@@ -64,8 +64,14 @@ def get_all_applications(type):
         for item in items:
             applications.append(item.to_json())
 
-        res = json.dumps(paginate(para["page"], para["page_size"], applications))
-        return jsonify(res)
+        res = paginate(para["page"], para["page_size"], applications)
+        if type == ApplicationType.APPLY_LENDER:
+            return jsonify({"lender_applications": res, "total": len(res)})
+        elif type == ApplicationType.APPLY_PUTON:
+            return jsonify({"equipment_puton_applications": res, "total": len(res)})
+        else:
+            return jsonify({"equipment_borrow_applications": res, "total": len(res)})
+                    
             
 #获取申请信息            
 @api.route("/applications/<int:type>/<int:id>", methods = ['GET'])
