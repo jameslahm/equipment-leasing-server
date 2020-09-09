@@ -1,4 +1,4 @@
-from itertools import permutations
+from email.policy import default
 from sqlalchemy.sql.expression import null
 from . import db
 from flask import current_app
@@ -26,9 +26,9 @@ class EquipmentStatus:
 
 
 class ApplicationStatus:
-    UNREVIEWED = 0x01
-    AGREE = 0x02
-    REFUSE = 0x04
+    UNREVIEWED = 'unreviewed'
+    AGREE = 'agree'
+    REFUSE = 'refuse'
 
 
 class NotificationContent:
@@ -196,7 +196,7 @@ class Equipment(db.Model):
     usage = db.Column('usage', db.String(64))
     borrow_applications = db.relationship(
         'EquipmentBorrowApplication', backref='equipment', lazy='dynamic')
-    confirmed_back = db.Column('comfirmed_back', db.Boolean, default=False)
+    confirmed_back = db.Column('comfirmed_back', db.Boolean, default=True)
     current_application_id=db.Column('current_application_id',db.Integer)
 
     # def get_current_application(self):
@@ -220,7 +220,14 @@ class Equipment(db.Model):
             }
         }
         return json_equipment
-
+    @staticmethod
+    def insert_equipment(owner_id,name,usage):
+        equipment = Equipment(owner_id=owner_id,name=name,usage=usage)
+        equipment.status = EquipmentStatus.UNREVIEWED
+        db.session.add(equipment)
+        db.session.commit()
+        return equipment
+    
     @staticmethod
     def search_equipments(user_now, body):
         if user_now:
@@ -284,7 +291,7 @@ class LenderApplication(db.Model):
         'users.id', ondelete='cascade'))
     lab_name = db.Column('lab_name', db.String(64))
     lab_location = db.Column('lab_location', db.String(64))
-    status = db.Column('status', db.Integer)
+    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
 
     def to_json(self):
         json_lenderApplication = {
@@ -300,11 +307,21 @@ class LenderApplication(db.Model):
             }
         }
         return json_lenderApplication
+    @staticmethod
+    def insert_lender_applicationn(body):
+        candidate_id = body.get('candidate_id')
+        lab_name = body.get('lab_name')
+        lab_location = body.get('lab_location')
+        application = LenderApplication(candidate_id=candidate_id,
+        lab_name = lab_name,lab_location=lab_location)
+        candidate = User.query.filter_by(id=candidate_id).first()
+        candidate.lab_name = lab_name
+        candidate.lab_location = lab_location
 
     @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
         User.update_userinfo(target.candidate_id, User.get_admin(), {
-            'role': 0x02
+            'role': 'lender'
         })
 
     @staticmethod
@@ -316,10 +333,8 @@ class LenderApplication(db.Model):
                 applications = LenderApplication.query.filter(
                     LenderApplication.candidate_id == id)
             if body.get('status'):
-                s = 0x01 if body['status'] == 'unreviewed' \
-                    else 0x02 if body['status'] == 'agree' else 0x04
                 applications = applications.filter(
-                    LenderApplication.status == s)
+                    LenderApplication.status == body['status'])
             if body.get('candidate_id'):
                 applications = applications.filter(
                     LenderApplication.candidate_id == body['candidate_id'])
@@ -358,7 +373,7 @@ class EquipmentPutOnApplication(db.Model):
     equipment_id = db.Column(db.Integer, db.ForeignKey(
         'equipments.id', ondelete='cascade'))
     application_time = db.Column('application_time', db.DateTime)
-    status = db.Column('status', db.Integer)
+    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
     reviewer_id = db.Column(db.Integer, db.ForeignKey(
         'users.id', ondelete='cascade'))
@@ -391,8 +406,28 @@ class EquipmentPutOnApplication(db.Model):
         return json_equipmentBorrowApplication
 
     @staticmethod
+    def insert_equipment_puton_application(body):
+        candidate_id = body.get('candidate_id')
+        usage = body.get('usage')
+        name = body.get('name')
+        equipment = Equipment.insert_equipment(candidate_id,name,usage)
+        application = EquipmentPutOnApplication(candidate_id=candidate_id,reviewer_id=1,
+        usage=usage,name=name,application_time=datetime.now(),
+        equipment_id=equipment.id)
+        db.session.add(application)
+        db.session.commit()
+        return application
+
+    @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
         target.review_time = datetime.now()
+        if value == ApplicationStatus.AGREE:
+            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
+            equipment.status = EquipmentStatus.IDLE
+            db.session.commit()
+        if value == ApplicationStatus.REFUSE:
+            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
+            Equipment.delete_equipment(target.equipment_id,User.get_admin())
 
     @staticmethod
     def get_application(user_now, body):
@@ -403,10 +438,8 @@ class EquipmentPutOnApplication(db.Model):
                 applications = EquipmentPutOnApplication.query.filter(
                     EquipmentPutOnApplication.candidate_id == user_now.id)
             if body.get('status'):
-                s = 0x01 if body['status'] == 'unreviewed' \
-                    else 0x02 if body['status'] == 'agree' else 0x04
                 applications = applications.filter(
-                    EquipmentPutOnApplication.status == s)
+                    EquipmentPutOnApplication.status == body['status'])
             if body.get('candidate_id'):
                 applications = applications.filter(
                     EquipmentPutOnApplication.candidate_id == body['candidate_id'])
@@ -450,7 +483,7 @@ class EquipmentBorrowApplication(db.Model):
         'equipments.id', ondelete='cascade'))
 
     application_time = db.Column('application_time', db.DateTime)
-    status = db.Column('status', db.Integer)
+    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
     reviewer_id = db.Column('reviewer_id', db.Integer,
                             db.ForeignKey('users.id', ondelete='cascade'))
@@ -479,7 +512,28 @@ class EquipmentBorrowApplication(db.Model):
             }
         }
         return json_equipmentBorrowApplication
-
+    @staticmethod 
+    def insert_equipment_borrow_application(body):
+        candidate_id = body.get('candidate_id')
+        equipment_id = body.get('equipment_id')
+        return_time = body.get('return_time')
+        usage = body.get('usage')
+        equipment = Equipment.query.filter_by(id=equipment_id).first()
+        application = EquipmentBorrowApplication(
+            equipment_id=equipment_id,return_time=return_time,
+            usage=usage,application_time=datetime.now(),
+            reviewer_id=equipment.owner_id,candidate_id=candidate_id)
+        db.session.add(application)
+        db.session.commit()
+        return application
+    
+    @staticmethod
+    def on_changed_status(target,value,oldvalue,initiator):
+        if value == ApplicationStatus.AGREE:
+            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
+            equipment.confirmed_back = False
+            equipment.current_application_id = target.id
+    
     @staticmethod
     def get_application(user_now, body):
         if user_now:
@@ -494,10 +548,8 @@ class EquipmentBorrowApplication(db.Model):
                         EquipmentBorrowApplication.candidate_id == user_now.id)
 
             if body.get('status'):
-                s = 0x01 if body['status'] == 'unreviewed' \
-                    else 0x02 if body['status'] == 'agree' else 0x04
                 applications = applications.filter(
-                    EquipmentBorrowApplication.status == s)
+                    EquipmentBorrowApplication.status == body['status'])
             if body.get('candidate_id'):
                 applications = applications.filter(
                     EquipmentBorrowApplication.candidate_id == body['candidate_id'])
@@ -519,6 +571,9 @@ class EquipmentBorrowApplication(db.Model):
             return application
         return null
 
+
+db.event.listen(EquipmentBorrowApplication.status, 'set',
+                EquipmentBorrowApplication.on_changed_status)
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
