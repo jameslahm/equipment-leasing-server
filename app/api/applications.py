@@ -1,12 +1,13 @@
-import json
-from flask.globals import request
-from flask.helpers import make_response
+from flask import request,jsonify
 from . import api
 from ..models import User,ApplicationType,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
+import json
 
 #分页
-def paginate(page, page_size, applications):
+def paginate(page: int, page_size: int, applications):
     #page默认为1,page_size默认为10
+    page = int(page)
+    page_size = int(page_size)
     if not page:
         page = 1
     if not page_size:
@@ -14,7 +15,7 @@ def paginate(page, page_size, applications):
 
     begin_index = (page-1)*page_size
     end_index = page*page_size
-    if end_index > applications.length:
+    if end_index > len(applications):
         return  applications[begin_index:]
     else:
         return applications[begin_index:end_index]
@@ -29,11 +30,11 @@ def get_all_applications(type):
     user = User.verify_auth_token(token)
 
     if not user:
-        return make_response(json.dumps({"error": "error message"}), 401)
+        return jsonify({"error":401})
     elif (not type):
-        return make_response(json.dumps({"error": "error message"}), 401)
+        return jsonify({"error":400})
     else:
-        applications = []
+        applications = [] 
         items = []
         if type == ApplicationType.APPLY_LENDER:   #APPLY_LENDER
             items = LenderApplication.query.all()
@@ -63,17 +64,18 @@ def get_all_applications(type):
         for item in items:
             applications.append(item.to_json())
 
-        return make_response(paginate(para["page"], para["page_size"], applications), 200)
+        res = json.dumps(paginate(para["page"], para["page_size"], applications))
+        return jsonify(res)
             
 #获取申请信息            
-@api.route("/applications/<type>/<id>", methods = ['GET'])
+@api.route("/applications/<int:type>/<int:id>", methods = ['GET'])
 def get_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
     res = None
 
     if not user:
-        return make_response(json.dumps({"error": "error message"}), 401)
+        return jsonify({"error": 401})
     else:
         if type == ApplicationType.APPLY_LENDER:   #APPLY_LENDER
             res = LenderApplication.query.get(id).to_json()
@@ -82,10 +84,10 @@ def get_application(type, id):
         else:           #APPLY_BORROW
             res = EquipmentBorrowApplication.query.get(id).to_json()
 
-        return make_response(res , 200)
+        return jsonify(res)
 
 #更新申请信息            
-@api.route("/applications/<type>/<id>", methods = ['PUT'])
+@api.route("/applications/<int:type>/<int:id>", methods = ['PUT'])
 def update_application(type, id):
     status = request.args.get("status")
     token = request.headers.get("Authorization")
@@ -93,7 +95,7 @@ def update_application(type, id):
     item = None
 
     if not user:
-        return make_response(json.dumps({"error": "error message"}), 401)
+        return jsonify({"error": 401})
     else:
         if type == ApplicationType.APPLY_LENDER:   #APPLY_LENDER
             item = LenderApplication.query.get(id)
@@ -103,4 +105,4 @@ def update_application(type, id):
             item = EquipmentBorrowApplication.query.get(id)
 
     item.status = status
-    return make_response(item.to_json(), 200)
+    return jsonify(item.to_json())
