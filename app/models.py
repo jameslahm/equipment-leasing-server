@@ -1,4 +1,4 @@
-from tarfile import AREGTYPE
+from itertools import permutations
 from sqlalchemy.sql.expression import null
 from . import db
 from flask import current_app
@@ -55,6 +55,18 @@ class Role(db.Model):
     name = db.Column('name', db.Integer, unique=True)
     users = db.relationship('User', backref='role', lazy='dynamic')
 
+    def insert_roles():
+        for name in [RoleName.ADMIN,RoleName.LENDER,RoleName.NORMAL]:
+            role = Role.query.filter_by(name = name).first()
+            if role is None: 
+                if name == RoleName.ADMIN:
+                    role = Role(permission =Permission.ADMIN,name = name)
+                if name == RoleName.LENDER:
+                    role = Role(permission = Permission.LENDER,name = name)
+                if name == RoleName.NORMAL:
+                    role = Role(permission = Permission.NORMAL, name = name)
+                db.session.add(role)
+                db.session.commit()
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -73,6 +85,14 @@ class User(db.Model):
     lab_name = db.Column('lab_name', db.String(64), default="")
     lab_location = db.Column('lab_location', db.String(64), default="")
 
+    def __init__(self,**kwargs):
+        super(User,self).__init__(**kwargs)
+        if self.role is None:
+            if self.email==current_app.config['FLASK_ADMIN']:
+                self.role=Role.query.filter_by(permission=Permission.ADMIN).first()
+            else:
+                self.role = Role.query.filter_by(permission=Permission.NORMAL).first()
+    
     def to_json(self):
         json_user = {
             'id': self.id,
