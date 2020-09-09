@@ -25,11 +25,8 @@ pip freeze > requirements.txt
 
 ## Start Development
 ```bash
-# export environment variables
-yarn dotenv 
-
-# start server
-flask run
+# start development server
+yarn start
 ```
 
 ## Play with Shell
