@@ -62,7 +62,7 @@ def register():
         jwt = user.generate_auth_token(expiration=86400*365)
         user_uncomfirmed = user.to_json()
         user_uncomfirmed['confirm_token'] = jwt
-        send_mail(email, '确认你的账户', '/confirm', jwt)
+        send_mail(email, 'Activate your account', '/confirm', jwt)
         return jsonify(user_uncomfirmed)
 
 
