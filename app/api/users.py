@@ -82,16 +82,9 @@ def confirm():
 
 @api.route('/users', methods=['GET'])
 def get_users():
-    body = dict()
     Users = dict()
     if User.verify_auth_token(request.headers.get('Authorization')):
-        if request.args.get('username'):
-            body['username'] = request.args.get('username')
-        if request.args.get('page'):
-            body['page'] = request.args.get('page')
-        if request.args.get('page_size'):
-            body['page_size'] = request.args.get('page_size')
-        users, total = User.search_byusername(body)
+        users, total = User.search_byusername(request.args)
         users = [x.to_json() for x in users]
         Users['total'] = total
         Users['users'] = users

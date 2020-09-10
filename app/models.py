@@ -149,7 +149,20 @@ class User(db.Model):
             u_name = ''
         page = int(body['page'])+1 if body.get('page') else 1
         page_size = int(body['page_size']) if body.get('page_size') else 10
-        pa = User.query.filter(User.username.contains(u_name)).paginate(
+        pa = User.query.filter(User.username.contains(u_name))
+        if body.get('order'):
+            if body.get('order_by'):
+                if body['order_by'] == 'username':
+                    if body.get('order')=='desc':
+                        pa=pa.order_by(User.username.desc())
+                    else:
+                        pa = pa.order_by(User.username.asc())
+                if body['order_by'] == 'id':
+                    if body.get('order')=='desc':
+                        pa=pa.order_by(User.id.desc())
+                    else:
+                        pa = pa.order_by(User.id.asc())                    
+        pa = pa.paginate(
             int(page), int(page_size), error_out=False
         )
         return pa.items, pa.total
@@ -205,11 +218,6 @@ class Equipment(db.Model):
     confirmed_back = db.Column('comfirmed_back', db.Boolean, default=True)
     current_application_id = db.Column('current_application_id', db.Integer)
 
-    # def get_current_application(self):
-    #     if self.confirmed_back==True:
-    #         return None
-    #     current_application=self.borrow_applications.filter(status==ApplicationStatus.AGREE).order_by(EquipmentBorrowApplication.return_time.desc()).first()
-    #     return current_application
 
     def to_json(self):
         json_equipment = {
@@ -248,6 +256,16 @@ class Equipment(db.Model):
     def search_equipments(user_now, body):
         if user_now:
             equipments = Equipment.query
+            if body.get('current_candidate_id'):
+                candidate_id = int(body['current_candidate_id'])
+                for x in equipments.all():
+                    user_id = -1
+                    user = EquipmentBorrowApplication.query.filter_by(
+                        id=x.current_application_id).first()
+                    if user is not None:
+                        user_id = user.candidate_id
+                    if user_id != candidate_id:                
+                        equipments = equipments.filter(Equipment.id != x.id)
             if body.get('name'):
                 equipments = equipments.filter(
                     Equipment.name.contains(body['name']))
@@ -255,12 +273,22 @@ class Equipment(db.Model):
                 equipments = equipments.filter(
                     Equipment.lab_location.contains(body['lab_location']))
             if body.get('status'):
-                s = 0 if body['status'] == 'unreviewed' \
-                    else 1 if body['status'] == 'idle' else 2
-                equipments = equipments.filter(Equipment.status == s)
+                equipments = equipments.filter(Equipment.status == body['status'])
             if body.get('owner_id'):
                 equipments = equipments.filter(
                     Equipment.owner_id == body['owner_id'])
+            if body.get('order'):
+                if body.get('order_by'):
+                    if body['order_by'] == 'name':
+                        if body.get('order')=='desc':
+                            equipments=equipments.order_by(Equipment.name.desc())
+                        else:
+                            equipments = equipments.order_by(Equipment.name.asc())
+                    if body['order_by'] == 'id':
+                        if body.get('order')=='desc':
+                            equipments=equipments.order_by(Equipment.id.desc())
+                        else:
+                            equipments = equipments.order_by(Equipment.id.asc())                        
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = equipments.paginate(
@@ -388,10 +416,21 @@ class LenderApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     LenderApplication.reviewer_id == body['reviewer_id'])
+            if body.get('order'):
+                if body.get('order_by'):
+                    if body['order_by'] == 'application_time':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(LenderApplication.application_time.desc())
+                        else:
+                            applications = applications.order_by(LenderApplication.application_time.asc())
+                    if body['order_by'] == 'id':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(LenderApplication.id.desc())
+                        else:
+                            applications = applications.order_by(LenderApplication.id.asc()) 
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
 
-            print(page, page_size)
             pa = applications.paginate(
                 page, page_size, error_out=False
             )
@@ -506,6 +545,18 @@ class EquipmentPutOnApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
+            if body.get('order'):
+                if body.get('order_by'):
+                    if body['order_by'] == 'application_time':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(EquipmentPutOnApplication.application_time.desc())
+                        else:
+                            applications = applications.order_by(EquipmentPutOnApplication.application_time.asc())
+                    if body['order_by'] == 'id':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(EquipmentPutOnApplication.id.desc())
+                        else:
+                            applications = applications.order_by(EquipmentPutOnApplication.id.asc()) 
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = applications.paginate(
@@ -631,6 +682,18 @@ class EquipmentBorrowApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentBorrowApplication.reviewer_id == body['reviewer_id'])
+            if body.get('order'):
+                if body.get('order_by'):
+                    if body['order_by'] == 'application_time':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(EquipmentBorrowApplication.application_time.desc())
+                        else:
+                            applications = applications.order_by(EquipmentBorrowApplication.application_time.asc())
+                    if body['order_by'] == 'id':
+                        if body.get('order')=='desc':
+                            applications = applications.order_by(EquipmentBorrowApplication.id.desc())
+                        else:
+                            applications = applications.order_by(EquipmentBorrowApplication.id.asc()) 
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = applications.paginate(
