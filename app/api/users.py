@@ -16,7 +16,7 @@ def send_async_email(app, msg):
 
 def send_mail(to, subject, template, token):
     app = current_app._get_current_object()
-    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+" "+subject,
+    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+": "+subject,
                   sender=current_app.config['MAIL_USERNAME'], recipients=[to])
     msg.html = "<h3>Please click the link below to confirm your account </h3><a href='https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}'>https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}</a>".format(
         token, token)
