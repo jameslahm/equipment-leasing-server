@@ -31,7 +31,6 @@ class ApplicationStatus:
     AGREE = 'agree'
     REFUSE = 'refuse'
 
-
 # TODO:
 class NotificationContent:
     APPLICATION_APPLY_MESSAGE = " New unreviewed {type}, apply id: {id}, apply user id: {user_id}, username:{username}"
@@ -210,7 +209,6 @@ class Equipment(db.Model):
         'users.id', ondelete='cascade'))
     status = db.Column('status', db.String(
         64), default=EquipmentStatus.UNREVIEWED)
-    return_time = db.Column('return_time', db.DateTime)
     name = db.Column('name', db.String(64))
     usage = db.Column('usage', db.String(64))
     borrow_applications = db.relationship(
@@ -223,7 +221,6 @@ class Equipment(db.Model):
         json_equipment = {
             'id': self.id,
             'status': self.status,
-            'return_time': self.return_time,
             'name': self.name,
             'owner': {
                 'lab_name': self.owner.lab_name,
@@ -457,7 +454,6 @@ class EquipmentPutOnApplication(db.Model):
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     candidate_id = db.Column(db.Integer, db.ForeignKey(
         'users.id', ondelete='cascade'))
-    usage = db.Column('usage', db.String(64))
     equipment_id = db.Column(db.Integer, db.ForeignKey(
         'equipments.id', ondelete='cascade'))
     application_time = db.Column('application_time', db.DateTime)
@@ -482,7 +478,11 @@ class EquipmentPutOnApplication(db.Model):
                 'avatar': self.reviewer.avatar,
                 'id': self.reviewer_id
             },
-            'usage': self.usage,
+            'equipment':{
+                'equipment_id':self.equipment_id,
+                'equipment_name': Equipment.query.filter_by(id=self.equipment_id).first().name,
+                'usage': Equipment.query.filter_by(id=self.equipment_id).first().usage
+            },
             'application_time': self.application_time,
             'review_time': self.review_time,
             'candidate': {
@@ -612,6 +612,11 @@ class EquipmentBorrowApplication(db.Model):
                 'lab_name': self.reviewer.lab_name,
                 'lab_location': self.reviewer.lab_location,
                 'id': self.reviewer_id
+            },
+            'equipment':{
+                'equipment_id':self.equipment_id,
+                'equipment_name': Equipment.query.filter_by(id=self.equipment_id).first().name,
+                'usage': Equipment.query.filter_by(id=self.equipment_id).first().usage
             },
             'usage': self.usage,
             'application_time': self.application_time,
