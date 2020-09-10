@@ -1,10 +1,8 @@
-from email.policy import default
 from . import db
 from flask import current_app
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer
-from copy import deepcopy
 
 class Permission:
     NORMAL = 0x01
@@ -31,13 +29,9 @@ class ApplicationStatus:
 
 
 class NotificationContent:
-    LENDER_APPLICATION_APPLY_MESSAGE = ""
-    LENDER_APPLICATION_AGREE_MESSAGE = ""
-    LENDER_APPLICATION_REFUSE_MESSAGE = ""
-    EQUIPMENT_APPLICATION_APPLY_MESSAGE = ""
-    EQUIPMENT_APPLICATION_AGREE_MESSAGE = ""
-    EQUIPMENT_APPLICATION_REFUSE_MESSAGE = ""
-
+    APPLICATION_APPLY_MESSAGE = " New unreviewed {type}, apply id: {id}, apply user id: {user_id}, username:{username}"
+    APPLICATION_AGREE_MESSAGE = "Congratulations,Your {type} has been accepted, reviewer id:{reviewer_id}, reviewer name: {reviewer_name}, review time: {review_time}"
+    APPLICATION_REFUSE_MESSAGE = "Sorry,Your {type} has been refused, reviewer id:{reviewer_id}, reviewer name: {reviewer_name}, review time: {review_time}"
 
 class ApplicationType:
     APPLY_LENDER = 'lender'
@@ -328,6 +322,9 @@ class LenderApplication(db.Model):
         candidate.lab_location = lab_location
         db.session.add(application)
         db.session.commit()
+        notification = Notification(type=ApplicationType.APPLY_LENDER,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
+        db.session.add(notification)
+        db.session.commit()
         return application
 
     @staticmethod
@@ -335,6 +332,9 @@ class LenderApplication(db.Model):
         User.update_userinfo(target.candidate_id, User.get_admin(), {
             'role': 'lender'
         })
+        notification = Notification(type=ApplicationType.APPLY_LENDER,sender_id=User.get_admin().id,receiver_id=target.candidate_id,application_id=target.id)
+        db.session.add(notification)
+        db.session.commit()
 
     @staticmethod
     def get_application(user_now, body):
@@ -428,6 +428,9 @@ class EquipmentPutOnApplication(db.Model):
         equipment_id=equipment.id)
         db.session.add(application)
         db.session.commit()
+        notification = Notification(type=ApplicationType.APPLY_PUTON,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
+        db.session.add(notification)
+        db.session.commit()
         return application
 
     @staticmethod
@@ -440,6 +443,9 @@ class EquipmentPutOnApplication(db.Model):
         if value == ApplicationStatus.REFUSE:
             equipment = Equipment.query.filter_by(id=target.equipment_id).first()
             Equipment.delete_equipment(target.equipment_id,User.get_admin())
+        notification = Notification(type=ApplicationType.APPLY_PUTON,sender_id=User.get_admin().id,receiver_id=target.candidate_id,application_id=target.id)
+        db.session.add(notification)
+        db.session.commit()
 
     @staticmethod
     def get_application(user_now, body):
@@ -537,10 +543,18 @@ class EquipmentBorrowApplication(db.Model):
             reviewer_id=equipment.owner_id,candidate_id=candidate_id)
         db.session.add(application)
         db.session.commit()
+        notification1 = Notification(type=ApplicationType.APPLY_BORROW,sender_id=candidate_id,receiver_id=equipment.owner_id,application_id=application.id)
+        db.session.add(notification1)
+        notification2 = Notification(type=ApplicationType.APPLY_BORROW,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
+        db.session.add(notification2)        
+        db.session.commit()
         return application
     
     @staticmethod
     def on_changed_status(target,value,oldvalue,initiator):
+        notification = Notification(type=ApplicationType.APPLY_BORROW,sender_id=target.reviewer_id,receiver_id=target.candidate_id,application_id=target.id)
+        db.session.add(notification)
+        db.session.commit()
         if value == ApplicationStatus.AGREE:
             equipment = Equipment.query.filter_by(id=target.equipment_id).first()
             equipment.confirmed_back = False
@@ -606,9 +620,49 @@ class Notification(db.Model):
         'User', backref='received_notifications', lazy='select', foreign_keys=[receiver_id])
     content = db.Column('content', db.String(64))
     notification_time = db.Column('notification_time', db.DateTime)
-    isRead = db.Column('isRead', db.Boolean)
+    isRead = db.Column('isRead', db.Boolean,default=False)
     type = db.Column('type', db.String(64))
     application_id = db.Column('application_id', db.Integer)
+
+    def __init__(self,**kwargs):
+        super(Notification,self).__init__(**kwargs)
+        self.notification_time = datetime.now()
+
+        if self.type == ApplicationType.APPLY_LENDER:
+            application = LenderApplication.query.filter_by(id = self.application_id).first()
+            if application.status == ApplicationStatus.UNREVIEWED:
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Lender Application',id=self.application_id,
+                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username)
+            if application.status == ApplicationStatus.REFUSE:
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Lender Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+            if application.status == ApplicationStatus.AGREE:
+                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Lender Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+
+        if self.type == ApplicationType.APPLY_PUTON:
+            application = EquipmentPutOnApplication.query.filter_by(id = self.application_id).first()
+            if application.status == ApplicationStatus.UNREVIEWED:
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Puton Application',id=self.application_id,
+                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username)
+            if application.status == ApplicationStatus.REFUSE:
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Puton Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+            if application.status == ApplicationStatus.AGREE:
+                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Puton Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+        
+        if self.type == ApplicationType.APPLY_BORROW:
+            application = EquipmentBorrowApplication.query.filter_by(id = self.application_id).first()
+            if application.status == ApplicationStatus.UNREVIEWED:
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Borrow Application',id=self.application_id,
+                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username) 
+            if application.status == ApplicationStatus.REFUSE:
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Borrow Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+            if application.status == ApplicationStatus.AGREE:
+                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Borrow Application',reviewer_id=self.sender_id,
+                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
 
     def to_json(self):
         if self.type == ApplicationType.APPLY_BORROW:
