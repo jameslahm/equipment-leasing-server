@@ -2,7 +2,6 @@ from flask import Blueprint,Response,render_template,jsonify,request
 from flask import request,abort,make_response
 from flask import json, current_app
 from flask.helpers import flash, url_for
-from sqlalchemy.sql.expression import null
 from flask_mail import Mail, Message
 from ..models import User,Role
 from . import api
@@ -91,11 +90,11 @@ def operate_user(id):
     if request.method == 'PUT':
         data = request.json
         user = User.update_userinfo(id, operator, data)
-        if user is not null:
+        if user is not None:
             return jsonify(user.to_json()),200
         return jsonify({'error':'illegal params'}),400
     if request.method == 'DELETE':
         user = User.delete_user(id,operator)
-        if user is not null:
+        if user is not None:
             return jsonify(user),200
         return jsonify({'error':'no permission'}),401
