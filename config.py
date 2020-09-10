@@ -7,7 +7,7 @@ class Config():
     SQLALCHEMY_COMMIT_ON_TEARDOWN = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     FLASK_ADMIN = os.getenv('FLASK_ADMIN') or '1436472425@qq.com'
-    FLASKY_MAIL_SUBJECT_PREFIX = 'Flasky'
+    FLASKY_MAIL_SUBJECT_PREFIX = 'Equipment Leasing Team'
     MAIL_SERVER = 'smtp.qq.com'
     MAIL_PORT = 465
     MAIL_USE_TLS = False
