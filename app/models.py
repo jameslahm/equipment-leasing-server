@@ -87,6 +87,11 @@ class User(db.Model):
     lab_name = db.Column('lab_name', db.String(64), default="")
     lab_location = db.Column('lab_location', db.String(64), default="")
 
+    sended_notifications = db.relationship(
+        'Notification', backref='sender', lazy='select', foreign_keys='Notification.sender_id',cascade="all, delete", passive_deletes=True)
+    received_notifications = db.relationship(
+        'Notification', backref='receiver', lazy='select', foreign_keys='Notification.receiver_id',cascade="all, delete", passive_deletes=True)
+
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         if self.role is None:
@@ -752,10 +757,6 @@ class Notification(db.Model):
                           db.ForeignKey('users.id', ondelete='cascade'))
     receiver_id = db.Column('receiver_id', db.Integer,
                             db.ForeignKey('users.id', ondelete='cascade'))
-    sender = db.relationship(
-        'User', backref='sended_notifications', lazy='select', foreign_keys=[sender_id])
-    receiver = db.relationship(
-        'User', backref='received_notifications', lazy='select', foreign_keys=[receiver_id])
     content = db.Column('content', db.String(64))
     notification_time = db.Column('notification_time', db.DateTime)
     isRead = db.Column('isRead', db.Boolean, default=False)
