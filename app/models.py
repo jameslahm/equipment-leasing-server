@@ -699,14 +699,12 @@ class Notification(db.Model):
     @staticmethod
     def get_notification(user_now, body):
         if user_now:
-            if user_now.role.permission == Permission.ADMIN:
-                notifications = Notification.query
-            else:
-                notifications = Notification.query.filter(
-                    Notification.receiver_id == user_now.id)
+            notifications = Notification.query.filter(
+                Notification.receiver_id == user_now.id)
             if body.get('isRead'):
+                isRead = True if body['isRead'] == 'true' else False
                 notifications = notifications.filter(
-                    Notification.isRead == body['isRead'])
+                    Notification.isRead == isRead)
             page = body['page'] if body.get('page') else 1
             page_size = body['page_size'] if body.get('page_size') else 10
             pa = notifications.paginate(
@@ -720,16 +718,18 @@ class Notification(db.Model):
         if user_now:
             notification = Notification.query.filter(
                 Notification.id == id).first()
-            notification.isRead = body.get('isRead')
-            db.session.commit()
-            return notification
+            if notification is not None:
+                notification.isRead = body.get('isRead')
+                db.session.commit()
+                return notification
         return None
 
     @staticmethod
     def delete_notification(id, user_now):
         if user_now:
             notification = Notification.query.filter(Notification.id == id).first().to_json()
-            Notification.query.filter(Notification.id == id).delete()
-            db.session.commit()
-            return notification
+            if notification is not None:
+                Notification.query.filter(Notification.id == id).delete()
+                db.session.commit()
+                return notification
         return None
