@@ -1,6 +1,6 @@
 from flask import jsonify, request
 from flask import request
-from flask import  current_app
+from flask import current_app
 from flask_mail import Mail, Message
 from ..models import User
 from . import api
@@ -16,9 +16,9 @@ def send_async_email(app, msg):
 
 def send_mail(to, subject, template, token):
     app = current_app._get_current_object()
-    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+subject,
+    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+" "+subject,
                   sender=current_app.config['MAIL_USERNAME'], recipients=[to])
-    msg.html = "<h3>请确认注册</h3><a href='http://127.0.0.1/users/confirm?confirm_token={}'>http://127.0.0.1/users/confirm?confirm_token={}</a>".format(
+    msg.html = "<h3>Please click the link below to confirm your account </h3><a href='https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}'>https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}</a>".format(
         token, token)
     thr = Thread(target=send_async_email, args=[app, msg])
     thr.start()
