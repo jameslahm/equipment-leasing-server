@@ -826,6 +826,8 @@ class Notification(db.Model):
             pa = notifications.paginate(
                 page, page_size, error_out=False
             )
+            if body.get('total') == 'true':
+                return [], pa.total
             return pa.items, pa.total
         return None
 
