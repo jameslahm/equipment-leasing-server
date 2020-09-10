@@ -2,7 +2,6 @@ from flask import Blueprint,Response,render_template,jsonify,request
 from flask import request,abort,make_response
 from flask import json, current_app
 from flask.helpers import flash, url_for
-from sqlalchemy.sql.expression import null
 from ..models import Equipment,User
 from . import api
 from .. import db
@@ -28,11 +27,11 @@ def equipment_operate(id):
         return jsonify({'error':'no such equipment'}),400
     if request.method == "PUT":
         update = Equipment.update_equipment(id, current_user, request.json)
-        if update is null:
+        if update is None:
             return jsonify({"error":"no such equipment"}, 400)
         return jsonify(update.to_json()),200
     if request.method == "DELETE":
         delete = Equipment.delete_equipment(id, current_user)
-        if delete == null:
+        if delete == None:
             return jsonify({"error":"no such equipment"}), 400
         return jsonify(delete),200

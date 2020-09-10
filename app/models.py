@@ -1,5 +1,4 @@
 from email.policy import default
-from sqlalchemy.sql.expression import null
 from . import db
 from flask import current_app
 from datetime import datetime
@@ -41,9 +40,9 @@ class NotificationContent:
 
 
 class ApplicationType:
-    APPLY_LENDER = 0
-    APPLY_PUTON = 1
-    APPLY_BORROW = 2
+    APPLY_LENDER = 'lender'
+    APPLY_PUTON = 'puton'
+    APPLY_BORROW = 'borrow'
 
 
 class Role(db.Model):
@@ -168,7 +167,7 @@ class User(db.Model):
                     user_update.role = Role.query.filter_by(name=body['role']).first()
                     user_update.role_id = user_update.role.id
         else:
-            return null
+            return None
         db.session.commit()
         return user_update
 
@@ -182,7 +181,7 @@ class User(db.Model):
                 db.session.commit()
                 return record
         else:
-            return null
+            return None
 
 
 class Equipment(db.Model):
@@ -253,7 +252,7 @@ class Equipment(db.Model):
             )
             return pa.items,pa.total
         else:
-            return null
+            return None
 
     @staticmethod
     def update_equipment(id, user_now, body):
@@ -277,9 +276,9 @@ class Equipment(db.Model):
                             equipment.current_application_id = None 
                             db.session.commit()
                             return equipment                      
-                return null
+                return None
         else:
-            return null
+            return None
 
     @staticmethod
     def delete_equipment(id, user_now):
@@ -291,7 +290,7 @@ class Equipment(db.Model):
                 Equipment.query.filter(Equipment.id == id).delete()
                 db.session.commit()
                 return record
-        return null
+        return None
 
 
 class LenderApplication(db.Model):
@@ -318,7 +317,7 @@ class LenderApplication(db.Model):
         }
         return json_lenderApplication
     @staticmethod
-    def insert_lender_applicationn(body):
+    def insert_lender_application(body):
         candidate_id = body.get('candidate_id')
         lab_name = body.get('lab_name')
         lab_location = body.get('lab_location')
@@ -327,6 +326,9 @@ class LenderApplication(db.Model):
         candidate = User.query.filter_by(id=candidate_id).first()
         candidate.lab_name = lab_name
         candidate.lab_location = lab_location
+        db.session.add(application)
+        db.session.commit()
+        return application
 
     @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
@@ -357,7 +359,7 @@ class LenderApplication(db.Model):
                 page,page_size,error_out=False
             )
             return pa.items,pa.total
-        return null
+        return None
 
     @staticmethod
     def update_application(id, user_now, body):
@@ -367,7 +369,7 @@ class LenderApplication(db.Model):
             application.status = body.get('status')
             db.session.commit()
             return application
-        return null
+        return None
 
 
 db.event.listen(LenderApplication.status, 'set',
@@ -422,7 +424,7 @@ class EquipmentPutOnApplication(db.Model):
         name = body.get('name')
         equipment = Equipment.insert_equipment(candidate_id,name,usage)
         application = EquipmentPutOnApplication(candidate_id=candidate_id,reviewer_id=1,
-        usage=usage,name=name,application_time=datetime.now(),
+        usage=usage,application_time=datetime.now(),
         equipment_id=equipment.id)
         db.session.add(application)
         db.session.commit()
@@ -442,7 +444,7 @@ class EquipmentPutOnApplication(db.Model):
     @staticmethod
     def get_application(user_now, body):
         if user_now:
-            if user_now.permission == Permission.ADMIN:
+            if user_now.role.permission == Permission.ADMIN:
                 applications = EquipmentPutOnApplication.query
             else:
                 applications = EquipmentPutOnApplication.query.filter(
@@ -462,7 +464,7 @@ class EquipmentPutOnApplication(db.Model):
                 page,page_size,error_out=False
             )
             return pa.items,pa.total
-        return null
+        return None
 
     @staticmethod
     def update_application(id, user_now, body):
@@ -472,7 +474,7 @@ class EquipmentPutOnApplication(db.Model):
             application.status = body.get('status')
             db.session.commit()
             return application
-        return null
+        return None
 
 
 db.event.listen(EquipmentPutOnApplication.status, 'set',
@@ -526,7 +528,7 @@ class EquipmentBorrowApplication(db.Model):
     def insert_equipment_borrow_application(body):
         candidate_id = body.get('candidate_id')
         equipment_id = body.get('equipment_id')
-        return_time = body.get('return_time')
+        return_time = datetime.fromtimestamp(body.get('return_time'))
         usage = body.get('usage')
         equipment = Equipment.query.filter_by(id=equipment_id).first()
         application = EquipmentBorrowApplication(
@@ -548,10 +550,10 @@ class EquipmentBorrowApplication(db.Model):
     @staticmethod
     def get_application(user_now, body):
         if user_now:
-            if user_now.permission == Permission.ADMIN:
+            if user_now.role.permission == Permission.ADMIN:
                 applications = EquipmentBorrowApplication.query
             else:
-                if user_now.permission == Permission.LENDER:
+                if user_now.role.permission == Permission.LENDER:
                     applications = EquipmentBorrowApplication.query.filter(
                         EquipmentBorrowApplication.reviewer_id == user_now.id)
                 else:
@@ -567,8 +569,13 @@ class EquipmentBorrowApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentBorrowApplication.reviewer_id == body['reviewer_id'])
-            return applications.all()
-        return null
+            page = body['page'] if body.get('page') else 1
+            page_size = body['page_size'] if body.get('page_size') else 10
+            pa = applications.paginate(
+                page,page_size,error_out=False
+            )
+            return pa.items,pa.total
+        return None
 
     @staticmethod
     def update_application(id, user_now, body):
@@ -580,7 +587,7 @@ class EquipmentBorrowApplication(db.Model):
             application.review_time = datetime.now()
             db.session.commit()
             return application
-        return null
+        return None
 
 
 db.event.listen(EquipmentBorrowApplication.status, 'set',
@@ -600,7 +607,7 @@ class Notification(db.Model):
     content = db.Column('content', db.String(64))
     notification_time = db.Column('notification_time', db.DateTime)
     isRead = db.Column('isRead', db.Boolean)
-    type = db.Column('type', db.Integer)
+    type = db.Column('type', db.String(64))
     application_id = db.Column('application_id', db.Integer)
 
     def to_json(self):
@@ -638,7 +645,7 @@ class Notification(db.Model):
     @staticmethod
     def get_notification(user_now, body):
         if user_now:
-            if user_now.permission == Permission.ADMIN:
+            if user_now.role.permission == Permission.ADMIN:
                 notifications = Notification.query
             else:
                 notifications = Notification.query.filter(
@@ -652,7 +659,7 @@ class Notification(db.Model):
                 page,page_size,error_out=False
             )
             return pa.items,pa.total
-        return null
+        return None
 
     @staticmethod
     def update_notification(id, user_now, body):
@@ -662,7 +669,7 @@ class Notification(db.Model):
             notification.isRead = body.get('isRead')
             db.session.commit()
             return notification
-        return null
+        return None
 
     @staticmethod
     def delete_notification(id, user_now):
@@ -671,4 +678,4 @@ class Notification(db.Model):
             Notification.query.filter(Notification.id == id).delete()
             db.session.commit()
             return notification
-        return null
+        return None
