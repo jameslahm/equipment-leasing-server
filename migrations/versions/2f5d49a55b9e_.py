@@ -1,8 +1,8 @@
-"""'test'
+"""empty message
 
-Revision ID: 2cb50a35c8b1
+Revision ID: 2f5d49a55b9e
 Revises: 
-Create Date: 2020-09-09 16:44:26.686470
+Create Date: 2020-09-10 23:23:23.752470
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2cb50a35c8b1'
+revision = '2f5d49a55b9e'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -43,8 +43,7 @@ def upgrade():
     op.create_table('equipments',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('owner_id', sa.Integer(), nullable=True),
-    sa.Column('status', sa.Integer(), nullable=False),
-    sa.Column('return_time', sa.DateTime(), nullable=True),
+    sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('name', sa.String(length=64), nullable=True),
     sa.Column('usage', sa.String(length=64), nullable=True),
     sa.Column('comfirmed_back', sa.Boolean(), nullable=True),
@@ -57,7 +56,9 @@ def upgrade():
     sa.Column('candidate_id', sa.Integer(), nullable=True),
     sa.Column('lab_name', sa.String(length=64), nullable=True),
     sa.Column('lab_location', sa.String(length=64), nullable=True),
-    sa.Column('status', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=64), nullable=True),
+    sa.Column('application_time', sa.DateTime(), nullable=True),
+    sa.Column('review_time', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -68,7 +69,7 @@ def upgrade():
     sa.Column('content', sa.String(length=64), nullable=True),
     sa.Column('notification_time', sa.DateTime(), nullable=True),
     sa.Column('isRead', sa.Boolean(), nullable=True),
-    sa.Column('type', sa.Integer(), nullable=True),
+    sa.Column('type', sa.String(length=64), nullable=True),
     sa.Column('application_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['receiver_id'], ['users.id'], ondelete='cascade'),
     sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ondelete='cascade'),
@@ -77,10 +78,9 @@ def upgrade():
     op.create_table('equipemnt_puton_applications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('candidate_id', sa.Integer(), nullable=True),
-    sa.Column('usage', sa.String(length=64), nullable=True),
     sa.Column('equipment_id', sa.Integer(), nullable=True),
     sa.Column('application_time', sa.DateTime(), nullable=True),
-    sa.Column('status', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('review_time', sa.DateTime(), nullable=True),
     sa.Column('reviewer_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
@@ -95,7 +95,7 @@ def upgrade():
     sa.Column('usage', sa.String(length=64), nullable=True),
     sa.Column('equipment_id', sa.Integer(), nullable=True),
     sa.Column('application_time', sa.DateTime(), nullable=True),
-    sa.Column('status', sa.Integer(), nullable=True),
+    sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('review_time', sa.DateTime(), nullable=True),
     sa.Column('reviewer_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
