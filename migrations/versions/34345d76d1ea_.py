@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 2f5d49a55b9e
+Revision ID: 34345d76d1ea
 Revises: 
-Create Date: 2020-09-10 23:23:23.752470
+Create Date: 2020-09-11 02:48:39.583973
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '2f5d49a55b9e'
+revision = '34345d76d1ea'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -22,8 +22,8 @@ def upgrade():
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('permission', sa.Integer(), nullable=True),
     sa.Column('name', sa.Integer(), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name')
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_roles')),
+    sa.UniqueConstraint('name', name=op.f('uq_roles_name'))
     )
     op.create_table('users',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -35,10 +35,10 @@ def upgrade():
     sa.Column('avatar', sa.String(length=128), nullable=True),
     sa.Column('lab_name', sa.String(length=64), nullable=True),
     sa.Column('lab_location', sa.String(length=64), nullable=True),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email'),
-    sa.UniqueConstraint('username')
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], name=op.f('fk_users_role_id_roles')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_users')),
+    sa.UniqueConstraint('email', name=op.f('uq_users_email')),
+    sa.UniqueConstraint('username', name=op.f('uq_users_username'))
     )
     op.create_table('equipments',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -48,8 +48,8 @@ def upgrade():
     sa.Column('usage', sa.String(length=64), nullable=True),
     sa.Column('comfirmed_back', sa.Boolean(), nullable=True),
     sa.Column('current_application_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['owner_id'], ['users.id'], name=op.f('fk_equipments_owner_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipments'))
     )
     op.create_table('lender_applications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -59,8 +59,8 @@ def upgrade():
     sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('application_time', sa.DateTime(), nullable=True),
     sa.Column('review_time', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], name=op.f('fk_lender_applications_candidate_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_lender_applications'))
     )
     op.create_table('notifications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -71,9 +71,9 @@ def upgrade():
     sa.Column('isRead', sa.Boolean(), nullable=True),
     sa.Column('type', sa.String(length=64), nullable=True),
     sa.Column('application_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['receiver_id'], ['users.id'], ondelete='cascade'),
-    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['receiver_id'], ['users.id'], name=op.f('fk_notifications_receiver_id_users')),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], name=op.f('fk_notifications_sender_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notifications'))
     )
     op.create_table('equipemnt_puton_applications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -82,11 +82,9 @@ def upgrade():
     sa.Column('application_time', sa.DateTime(), nullable=True),
     sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('review_time', sa.DateTime(), nullable=True),
-    sa.Column('reviewer_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
-    sa.ForeignKeyConstraint(['equipment_id'], ['equipments.id'], ondelete='cascade'),
-    sa.ForeignKeyConstraint(['reviewer_id'], ['users.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], name=op.f('fk_equipemnt_puton_applications_candidate_id_users')),
+    sa.ForeignKeyConstraint(['equipment_id'], ['equipments.id'], name=op.f('fk_equipemnt_puton_applications_equipment_id_equipments')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipemnt_puton_applications'))
     )
     op.create_table('equipment_borrow_applications',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -98,10 +96,10 @@ def upgrade():
     sa.Column('status', sa.String(length=64), nullable=True),
     sa.Column('review_time', sa.DateTime(), nullable=True),
     sa.Column('reviewer_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], ondelete='cascade'),
-    sa.ForeignKeyConstraint(['equipment_id'], ['equipments.id'], ondelete='cascade'),
-    sa.ForeignKeyConstraint(['reviewer_id'], ['users.id'], ondelete='cascade'),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['candidate_id'], ['users.id'], name=op.f('fk_equipment_borrow_applications_candidate_id_users')),
+    sa.ForeignKeyConstraint(['equipment_id'], ['equipments.id'], name=op.f('fk_equipment_borrow_applications_equipment_id_equipments')),
+    sa.ForeignKeyConstraint(['reviewer_id'], ['users.id'], name=op.f('fk_equipment_borrow_applications_reviewer_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_equipment_borrow_applications'))
     )
     # ### end Alembic commands ###
 
