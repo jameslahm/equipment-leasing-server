@@ -1,7 +1,6 @@
 from flask import request, jsonify
 from . import api
 from ..models import User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
-import json
 
 # 获取全部申请
 

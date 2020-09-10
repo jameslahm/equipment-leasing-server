@@ -1,4 +1,3 @@
-from app.api.users import confirm
 from flask import current_app
 from flask.cli import with_appcontext
 from . import db

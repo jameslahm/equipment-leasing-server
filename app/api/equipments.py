@@ -1,10 +1,7 @@
-from flask import Blueprint,Response,render_template,jsonify,request
-from flask import request,abort,make_response
-from flask import json, current_app
-from flask.helpers import flash, url_for
+from flask import jsonify,request
+from flask import request
 from ..models import Equipment,User
 from . import api
-from .. import db
 
 @api.route('/equipments',methods=['GET'])
 def get_equiments():
