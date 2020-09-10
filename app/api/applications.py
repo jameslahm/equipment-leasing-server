@@ -3,23 +3,6 @@ from . import api
 from ..models import User,ApplicationType,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
 import json
 
-# #分页
-# def paginate(page: int, page_size: int, applications):
-#     #page默认为1,page_size默认为10
-#     page = int(page)
-#     page_size = int(page_size)
-#     if not page:
-#         page = 1
-#     if not page_size:
-#         page_size = 10
-
-#     begin_index = (page-1)*page_size
-#     end_index = page*page_size
-#     if end_index > len(applications):
-#         return  applications[begin_index:]
-#     else:
-#         return applications[begin_index:end_index]
-
 #获取全部申请
 @api.route("/applications/<type>", methods=['GET','POST'])
 def operate_applications(type):

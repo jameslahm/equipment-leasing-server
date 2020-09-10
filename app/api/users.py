@@ -62,6 +62,15 @@ def register():
         send_mail(email,'确认你的账户','/confirm',jwt)
         return jsonify(User_uncomfirmed)
 
+@api.route('/confirm',methods=['POST'])
+def confirm():
+    user = User.verify_auth_token(request.headers.get("Authorization"))
+    if user:
+        user = User.update_userinfo(user.id,User.get_admin(),{'comfirmed':True})
+        return jsonify(user.to_json()),200
+    return jsonify({'error':'bad request'}),400
+
+
 @api.route('/users',methods=['GET'])
 def get_users():
     body=dict()
