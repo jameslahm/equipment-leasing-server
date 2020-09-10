@@ -1,8 +1,12 @@
+from wsgiref.util import application_uri
+
+from sqlalchemy.sql.expression import null
 from . import db
 from flask import current_app
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer
+
 
 class Permission:
     NORMAL = 0x01
@@ -28,10 +32,12 @@ class ApplicationStatus:
     REFUSE = 'refuse'
 
 
+# TODO:
 class NotificationContent:
     APPLICATION_APPLY_MESSAGE = " New unreviewed {type}, apply id: {id}, apply user id: {user_id}, username:{username}"
     APPLICATION_AGREE_MESSAGE = "Congratulations,Your {type} has been accepted, reviewer id:{reviewer_id}, reviewer name: {reviewer_name}, review time: {review_time}"
     APPLICATION_REFUSE_MESSAGE = "Sorry,Your {type} has been refused, reviewer id:{reviewer_id}, reviewer name: {reviewer_name}, review time: {review_time}"
+
 
 class ApplicationType:
     APPLY_LENDER = 'lender'
@@ -49,17 +55,18 @@ class Role(db.Model):
     users = db.relationship('User', backref='role', lazy='dynamic')
 
     def insert_roles():
-        for name in [RoleName.ADMIN,RoleName.LENDER,RoleName.NORMAL]:
-            role = Role.query.filter_by(name = name).first()
-            if role is None: 
+        for name in [RoleName.ADMIN, RoleName.LENDER, RoleName.NORMAL]:
+            role = Role.query.filter_by(name=name).first()
+            if role is None:
                 if name == RoleName.ADMIN:
-                    role = Role(permission =Permission.ADMIN,name = name)
+                    role = Role(permission=Permission.ADMIN, name=name)
                 if name == RoleName.LENDER:
-                    role = Role(permission = Permission.LENDER,name = name)
+                    role = Role(permission=Permission.LENDER, name=name)
                 if name == RoleName.NORMAL:
-                    role = Role(permission = Permission.NORMAL, name = name)
+                    role = Role(permission=Permission.NORMAL, name=name)
                 db.session.add(role)
                 db.session.commit()
+
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -78,13 +85,15 @@ class User(db.Model):
     lab_name = db.Column('lab_name', db.String(64), default="")
     lab_location = db.Column('lab_location', db.String(64), default="")
 
-    def __init__(self,**kwargs):
-        super(User,self).__init__(**kwargs)
+    def __init__(self, **kwargs):
+        super(User, self).__init__(**kwargs)
         if self.role is None:
-            if self.email==current_app.config['FLASK_ADMIN']:
-                self.role=Role.query.filter_by(permission=Permission.ADMIN).first()
+            if self.email == current_app.config['FLASK_ADMIN']:
+                self.role = Role.query.filter_by(
+                    permission=Permission.ADMIN).first()
             else:
-                self.role = Role.query.filter_by(permission=Permission.NORMAL).first()
+                self.role = Role.query.filter_by(
+                    permission=Permission.NORMAL).first()
             self.role_id = self.role.id
 
     def to_json(self):
@@ -115,13 +124,15 @@ class User(db.Model):
     def generate_auth_token(self, expiration):
         s = TimedJSONWebSignatureSerializer(
             current_app.config['SECRET_KEY'], expires_in=expiration)
-        return s.dumps(self.id).decode('utf-8')
+        # TODO:
+        return s.dumps({"id": self.id}).decode('utf-8')
 
     @staticmethod
     def verify_auth_token(token):
         s = TimedJSONWebSignatureSerializer(current_app.config['SECRET_KEY'])
         try:
-            id = s.loads(token.encode('utf-8'))
+            # TODO:
+            id = s.loads(token.encode('utf-8')).get("id")
         except:
             return False
         return User.query.filter(User.id == id).first()
@@ -136,13 +147,12 @@ class User(db.Model):
             u_name = body.get('username')
         else:
             u_name = ''
-        page = body['page'] if body.get('page') else 1
-        page_size = body['page_size'] if body.get('page_size') else 10
+        page = int(body['page'])+1 if body.get('page') else 1
+        page_size = int(body['page_size']) if body.get('page_size') else 10
         pa = User.query.filter(User.username.contains(u_name)).paginate(
-            int(page),int(page_size),error_out=False
+            int(page), int(page_size), error_out=False
         )
-        return pa.items,pa.total
-        
+        return pa.items, pa.total
 
     @staticmethod
     def update_userinfo(id, user_now, body: dict):
@@ -154,11 +164,13 @@ class User(db.Model):
                 user_update.password = body.get('username')
             if body.get('avatar'):
                 user_update.avatar = body.get('avatar')
+
             if user_now.role.permission == Permission.ADMIN:
-                if body.get('confirmed')==True or body.get('confirmed')==False:
+                if body.get('confirmed') == True or body.get('confirmed') == False:
                     user_update.confirmed = body['confirmed']
                 if body.get('role'):
-                    user_update.role = Role.query.filter_by(name=body['role']).first()
+                    user_update.role = Role.query.filter_by(
+                        name=body['role']).first()
                     user_update.role_id = user_update.role.id
         else:
             return None
@@ -183,14 +195,15 @@ class Equipment(db.Model):
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     owner_id = db.Column(db.Integer, db.ForeignKey(
         'users.id', ondelete='cascade'))
-    status = db.Column('status', db.String(64), default=EquipmentStatus.UNREVIEWED)
+    status = db.Column('status', db.String(
+        64), default=EquipmentStatus.UNREVIEWED)
     return_time = db.Column('return_time', db.DateTime)
     name = db.Column('name', db.String(64))
     usage = db.Column('usage', db.String(64))
     borrow_applications = db.relationship(
         'EquipmentBorrowApplication', backref='equipment', lazy='dynamic')
     confirmed_back = db.Column('comfirmed_back', db.Boolean, default=True)
-    current_application_id=db.Column('current_application_id',db.Integer)
+    current_application_id = db.Column('current_application_id', db.Integer)
 
     # def get_current_application(self):
     #     if self.confirmed_back==True:
@@ -211,17 +224,26 @@ class Equipment(db.Model):
                 'username': self.owner.username,
                 'id': self.owner_id
             },
-            'usage': self.usage
+            'usage': self.usage,
+            'confirmed_back': self.confirmed_back
         }
+        current_application = {} if self.current_application_id else None
+        if self.current_application_id:
+            application = EquipmentBorrowApplication.query.filter_by(
+                id=self.current_application_id).first()
+            current_application['id'] = self.current_application_id
+            current_application['candidate_id'] = application.candidate_id
+        json_equipment["current_application"] = current_application
         return json_equipment
+
     @staticmethod
-    def insert_equipment(owner_id,name,usage):
-        equipment = Equipment(owner_id=owner_id,name=name,usage=usage)
+    def insert_equipment(owner_id, name, usage):
+        equipment = Equipment(owner_id=owner_id, name=name, usage=usage)
         equipment.status = EquipmentStatus.UNREVIEWED
         db.session.add(equipment)
         db.session.commit()
         return equipment
-    
+
     @staticmethod
     def search_equipments(user_now, body):
         if user_now:
@@ -239,12 +261,12 @@ class Equipment(db.Model):
             if body.get('owner_id'):
                 equipments = equipments.filter(
                     Equipment.owner_id == body['owner_id'])
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = equipments.paginate(
-                page,page_size,error_out=False
+                page, page_size, error_out=False
             )
-            return pa.items,pa.total
+            return pa.items, pa.total
         else:
             return None
 
@@ -258,18 +280,19 @@ class Equipment(db.Model):
                     equipment.name = body['name']
                 if body.get('usage'):
                     equipment.usage = body['usage']
+                if body.get('confirmed_back') == True:
+                    equipment.confirmed_back = True
+                    equipment.status = EquipmentStatus.IDLE
                 db.session.commit()
                 return equipment
             else:
                 if equipment:
-                    borrower = EquipmentBorrowApplication.query.filter_by(id=equipment.current_application_id).first().candidate
+                    borrower = EquipmentBorrowApplication.query.filter_by(
+                        id=equipment.current_application_id).first().candidate
                     if borrower.id == user_now.id:
-                        if body.get('confirm_back')==True:
-                            equipment.confirm_back = True
-                            equipment.status = EquipmentStatus.IDLE
-                            equipment.current_application_id = None 
-                            db.session.commit()
-                            return equipment                      
+                        equipment.current_application_id = None
+                        db.session.commit()
+                        return equipment
                 return None
         else:
             return None
@@ -280,7 +303,8 @@ class Equipment(db.Model):
         if user_now and equipment:
             if user_now.role.permission == Permission.ADMIN or \
                     equipment.owner_id == user_now.id:
-                record = Equipment.query.filter(Equipment.id == id).first().to_json()
+                record = Equipment.query.filter(
+                    Equipment.id == id).first().to_json()
                 Equipment.query.filter(Equipment.id == id).delete()
                 db.session.commit()
                 return record
@@ -294,7 +318,10 @@ class LenderApplication(db.Model):
         'users.id', ondelete='cascade'))
     lab_name = db.Column('lab_name', db.String(64))
     lab_location = db.Column('lab_location', db.String(64))
-    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
+    status = db.Column('status', db.String(
+        64), default=ApplicationStatus.UNREVIEWED)
+    application_time = db.Column('application_time', db.DateTime)
+    review_time = db.Column('review_time', db.DateTime)
 
     def to_json(self):
         json_lenderApplication = {
@@ -307,43 +334,51 @@ class LenderApplication(db.Model):
                 'email': self.user.email,
                 'avatar': self.user.avatar,
                 'id': self.candidate_id
-            }
+            },
+            'application_time': self.application_time,
+            'review_time': self.review_time
         }
         return json_lenderApplication
+
     @staticmethod
     def insert_lender_application(body):
         candidate_id = body.get('candidate_id')
         lab_name = body.get('lab_name')
         lab_location = body.get('lab_location')
         application = LenderApplication(candidate_id=candidate_id,
-        lab_name = lab_name,lab_location=lab_location)
+                                        lab_name=lab_name, lab_location=lab_location, application_time=datetime.now())
         candidate = User.query.filter_by(id=candidate_id).first()
         candidate.lab_name = lab_name
         candidate.lab_location = lab_location
+
         db.session.add(application)
         db.session.commit()
-        notification = Notification(type=ApplicationType.APPLY_LENDER,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
+        notification = Notification(type=ApplicationType.APPLY_LENDER, sender_id=candidate_id,
+                                    receiver_id=User.get_admin().id, application_id=application.id)
         db.session.add(notification)
         db.session.commit()
         return application
 
     @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
+        target.review_time = datetime.now()
         User.update_userinfo(target.candidate_id, User.get_admin(), {
             'role': 'lender'
         })
-        notification = Notification(type=ApplicationType.APPLY_LENDER,sender_id=User.get_admin().id,receiver_id=target.candidate_id,application_id=target.id)
+        notification = Notification(type=ApplicationType.APPLY_LENDER, sender_id=User.get_admin(
+        ).id, receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
         db.session.commit()
 
     @staticmethod
     def get_application(user_now, body):
+        applications = LenderApplication.query
         if user_now:
             if user_now.role.permission == Permission.ADMIN:
-                applications = LenderApplication.query
+                pass
             else:
-                applications = LenderApplication.query.filter(
-                    LenderApplication.candidate_id == id)
+                applications = applications.filter(
+                    LenderApplication.candidate_id == user_now.id)
             if body.get('status'):
                 applications = applications.filter(
                     LenderApplication.status == body['status'])
@@ -353,12 +388,14 @@ class LenderApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     LenderApplication.reviewer_id == body['reviewer_id'])
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
+
+            print(page, page_size)
             pa = applications.paginate(
-                page,page_size,error_out=False
+                page, page_size, error_out=False
             )
-            return pa.items,pa.total
+            return pa.items, pa.total
         return None
 
     @staticmethod
@@ -385,7 +422,8 @@ class EquipmentPutOnApplication(db.Model):
     equipment_id = db.Column(db.Integer, db.ForeignKey(
         'equipments.id', ondelete='cascade'))
     application_time = db.Column('application_time', db.DateTime)
-    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
+    status = db.Column('status', db.String(
+        64), default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
     reviewer_id = db.Column(db.Integer, db.ForeignKey(
         'users.id', ondelete='cascade'))
@@ -422,13 +460,14 @@ class EquipmentPutOnApplication(db.Model):
         candidate_id = body.get('candidate_id')
         usage = body.get('usage')
         name = body.get('name')
-        equipment = Equipment.insert_equipment(candidate_id,name,usage)
-        application = EquipmentPutOnApplication(candidate_id=candidate_id,reviewer_id=1,
-        usage=usage,application_time=datetime.now(),
-        equipment_id=equipment.id)
+        equipment = Equipment.insert_equipment(candidate_id, name, usage)
+        application = EquipmentPutOnApplication(candidate_id=candidate_id, reviewer_id=1,
+                                                usage=usage, application_time=datetime.now(),
+                                                equipment_id=equipment.id)
         db.session.add(application)
         db.session.commit()
-        notification = Notification(type=ApplicationType.APPLY_PUTON,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
+        notification = Notification(type=ApplicationType.APPLY_PUTON, sender_id=candidate_id,
+                                    receiver_id=User.get_admin().id, application_id=application.id)
         db.session.add(notification)
         db.session.commit()
         return application
@@ -437,13 +476,16 @@ class EquipmentPutOnApplication(db.Model):
     def on_changed_status(target, value, oldvalue, initiator):
         target.review_time = datetime.now()
         if value == ApplicationStatus.AGREE:
-            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
+            equipment = Equipment.query.filter_by(
+                id=target.equipment_id).first()
             equipment.status = EquipmentStatus.IDLE
             db.session.commit()
         if value == ApplicationStatus.REFUSE:
-            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
-            Equipment.delete_equipment(target.equipment_id,User.get_admin())
-        notification = Notification(type=ApplicationType.APPLY_PUTON,sender_id=User.get_admin().id,receiver_id=target.candidate_id,application_id=target.id)
+            equipment = Equipment.query.filter_by(
+                id=target.equipment_id).first()
+            Equipment.delete_equipment(target.equipment_id, User.get_admin())
+        notification = Notification(type=ApplicationType.APPLY_PUTON, sender_id=User.get_admin(
+        ).id, receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
         db.session.commit()
 
@@ -464,12 +506,12 @@ class EquipmentPutOnApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = applications.paginate(
-                page,page_size,error_out=False
+                page, page_size, error_out=False
             )
-            return pa.items,pa.total
+            return pa.items, pa.total
         return None
 
     @staticmethod
@@ -501,7 +543,8 @@ class EquipmentBorrowApplication(db.Model):
         'equipments.id', ondelete='cascade'))
 
     application_time = db.Column('application_time', db.DateTime)
-    status = db.Column('status', db.String(64),default=ApplicationStatus.UNREVIEWED)
+    status = db.Column('status', db.String(
+        64), default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
     reviewer_id = db.Column('reviewer_id', db.Integer,
                             db.ForeignKey('users.id', ondelete='cascade'))
@@ -530,37 +573,42 @@ class EquipmentBorrowApplication(db.Model):
             }
         }
         return json_equipmentBorrowApplication
-    @staticmethod 
+
+    @staticmethod
     def insert_equipment_borrow_application(body):
         candidate_id = body.get('candidate_id')
         equipment_id = body.get('equipment_id')
-        return_time = datetime.fromtimestamp(body.get('return_time'))
+        return_time = datetime.fromtimestamp(body.get('return_time')/1000)
         usage = body.get('usage')
         equipment = Equipment.query.filter_by(id=equipment_id).first()
         application = EquipmentBorrowApplication(
-            equipment_id=equipment_id,return_time=return_time,
-            usage=usage,application_time=datetime.now(),
-            reviewer_id=equipment.owner_id,candidate_id=candidate_id)
+            equipment_id=equipment_id, return_time=return_time,
+            usage=usage, application_time=datetime.now(),
+            reviewer_id=equipment.owner_id, candidate_id=candidate_id)
         db.session.add(application)
         db.session.commit()
-        notification1 = Notification(type=ApplicationType.APPLY_BORROW,sender_id=candidate_id,receiver_id=equipment.owner_id,application_id=application.id)
+        notification1 = Notification(type=ApplicationType.APPLY_BORROW, sender_id=candidate_id,
+                                     receiver_id=equipment.owner_id, application_id=application.id)
         db.session.add(notification1)
-        notification2 = Notification(type=ApplicationType.APPLY_BORROW,sender_id=candidate_id,receiver_id=User.get_admin().id,application_id=application.id)
-        db.session.add(notification2)        
+        notification2 = Notification(type=ApplicationType.APPLY_BORROW, sender_id=candidate_id,
+                                     receiver_id=User.get_admin().id, application_id=application.id)
+        db.session.add(notification2)
         db.session.commit()
         return application
-    
+
     @staticmethod
-    def on_changed_status(target,value,oldvalue,initiator):
-        notification = Notification(type=ApplicationType.APPLY_BORROW,sender_id=target.reviewer_id,receiver_id=target.candidate_id,application_id=target.id)
+    def on_changed_status(target, value, oldvalue, initiator):
+        notification = Notification(type=ApplicationType.APPLY_BORROW, sender_id=target.reviewer_id,
+                                    receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
         db.session.commit()
         if value == ApplicationStatus.AGREE:
-            equipment = Equipment.query.filter_by(id=target.equipment_id).first()
+            equipment = Equipment.query.filter_by(
+                id=target.equipment_id).first()
             equipment.confirmed_back = False
             equipment.current_application_id = target.id
             equipment.status = EquipmentStatus.LEASE
-    
+
     @staticmethod
     def get_application(user_now, body):
         if user_now:
@@ -583,12 +631,12 @@ class EquipmentBorrowApplication(db.Model):
             if body.get('reviewer_id'):
                 applications = applications.filter(
                     EquipmentBorrowApplication.reviewer_id == body['reviewer_id'])
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = applications.paginate(
-                page,page_size,error_out=False
+                page, page_size, error_out=False
             )
-            return pa.items,pa.total
+            return pa.items, pa.total
         return None
 
     @staticmethod
@@ -607,6 +655,7 @@ class EquipmentBorrowApplication(db.Model):
 db.event.listen(EquipmentBorrowApplication.status, 'set',
                 EquipmentBorrowApplication.on_changed_status)
 
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
@@ -620,51 +669,55 @@ class Notification(db.Model):
         'User', backref='received_notifications', lazy='select', foreign_keys=[receiver_id])
     content = db.Column('content', db.String(64))
     notification_time = db.Column('notification_time', db.DateTime)
-    isRead = db.Column('isRead', db.Boolean,default=False)
+    isRead = db.Column('isRead', db.Boolean, default=False)
     type = db.Column('type', db.String(64))
     application_id = db.Column('application_id', db.Integer)
 
-    def __init__(self,**kwargs):
-        super(Notification,self).__init__(**kwargs)
+    def __init__(self, **kwargs):
+        super(Notification, self).__init__(**kwargs)
         self.notification_time = datetime.now()
 
         if self.type == ApplicationType.APPLY_LENDER:
-            application = LenderApplication.query.filter_by(id = self.application_id).first()
+            application = LenderApplication.query.filter_by(
+                id=self.application_id).first()
             if application.status == ApplicationStatus.UNREVIEWED:
-                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Lender Application',id=self.application_id,
-                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username)
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Lender Application', id=self.application_id,
+                                                                                    user_id=self.sender_id, username=User.query.filter_by(id=self.sender_id).first().username)
             if application.status == ApplicationStatus.REFUSE:
-                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Lender Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Lender Application', reviewer_id=self.sender_id,
+                                                                                     reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
             if application.status == ApplicationStatus.AGREE:
-                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Lender Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+                self.content = NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Lender Application', reviewer_id=self.sender_id,
+                                                                                    reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
 
         if self.type == ApplicationType.APPLY_PUTON:
-            application = EquipmentPutOnApplication.query.filter_by(id = self.application_id).first()
+            application = EquipmentPutOnApplication.query.filter_by(
+                id=self.application_id).first()
             if application.status == ApplicationStatus.UNREVIEWED:
-                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Puton Application',id=self.application_id,
-                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username)
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Puton Application', id=self.application_id,
+                                                                                    user_id=self.sender_id, username=User.query.filter_by(id=self.sender_id).first().username)
             if application.status == ApplicationStatus.REFUSE:
-                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Puton Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Puton Application', reviewer_id=self.sender_id,
+                                                                                     reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
             if application.status == ApplicationStatus.AGREE:
-                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Puton Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
-        
+                self.content = NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Puton Application', reviewer_id=self.sender_id,
+                                                                                    reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
+
         if self.type == ApplicationType.APPLY_BORROW:
-            application = EquipmentBorrowApplication.query.filter_by(id = self.application_id).first()
+            application = EquipmentBorrowApplication.query.filter_by(
+                id=self.application_id).first()
             if application.status == ApplicationStatus.UNREVIEWED:
-                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Borrow Application',id=self.application_id,
-                user_id=self.sender_id,username=User.query.filter_by(id=self.sender_id).first().username) 
+                self.content = NotificationContent.APPLICATION_APPLY_MESSAGE.format(type='Equipment Borrow Application', id=self.application_id,
+                                                                                    user_id=self.sender_id, username=User.query.filter_by(id=self.sender_id).first().username)
             if application.status == ApplicationStatus.REFUSE:
-                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Borrow Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+                self.content = NotificationContent.APPLICATION_REFUSE_MESSAGE.format(type='Equipment Borrow Application', reviewer_id=self.sender_id,
+                                                                                     reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
             if application.status == ApplicationStatus.AGREE:
-                self.content =  NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Borrow Application',reviewer_id=self.sender_id,
-                reviewer_name=User.query.filter_by(id=self.sender_id).first().username,review_time=self.notification_time)
+                self.content = NotificationContent.APPLICATION_AGREE_MESSAGE.format(type='Equipment Borrow Application', reviewer_id=self.sender_id,
+                                                                                    reviewer_name=User.query.filter_by(id=self.sender_id).first().username, review_time=self.notification_time)
 
     def to_json(self):
+        application = None
         if self.type == ApplicationType.APPLY_BORROW:
             application = EquipmentBorrowApplication.query.filter(
                 EquipmentBorrowApplication.id == self.application_id
@@ -673,7 +726,7 @@ class Notification(db.Model):
             application = LenderApplication.query.filter(
                 LenderApplication.id == self.application_id
             ).first()
-        else:
+        if self.type == ApplicationType.APPLY_PUTON:
             application = EquipmentPutOnApplication.query.filter(
                 EquipmentPutOnApplication.id == self.application_id
             ).first()
@@ -705,12 +758,12 @@ class Notification(db.Model):
                 isRead = True if body['isRead'] == 'true' else False
                 notifications = notifications.filter(
                     Notification.isRead == isRead)
-            page = body['page'] if body.get('page') else 1
-            page_size = body['page_size'] if body.get('page_size') else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = notifications.paginate(
-                page,page_size,error_out=False
+                page, page_size, error_out=False
             )
-            return pa.items,pa.total
+            return pa.items, pa.total
         return None
 
     @staticmethod
@@ -727,7 +780,8 @@ class Notification(db.Model):
     @staticmethod
     def delete_notification(id, user_now):
         if user_now:
-            notification = Notification.query.filter(Notification.id == id).first().to_json()
+            notification = Notification.query.filter(
+                Notification.id == id).first().to_json()
             if notification is not None:
                 Notification.query.filter(Notification.id == id).delete()
                 db.session.commit()
