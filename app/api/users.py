@@ -1,9 +1,8 @@
-from flask import Blueprint, Response, render_template, jsonify, request
-from flask import request, abort, make_response
-from flask import json, current_app
-from flask.helpers import flash, url_for
+from flask import jsonify, request
+from flask import request
+from flask import  current_app
 from flask_mail import Mail, Message
-from ..models import User, Role
+from ..models import User
 from . import api
 from .. import db
 from threading import Thread

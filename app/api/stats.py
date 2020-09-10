@@ -1,7 +1,6 @@
-from app.api import equipments
-from flask import request,jsonify
+from flask import jsonify
 from . import api
-from ..models import User,Equipment,ApplicationType,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
+from ..models import User,Equipment,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
 from ..models import EquipmentStatus
 import datetime
 
