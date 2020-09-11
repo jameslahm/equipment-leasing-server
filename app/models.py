@@ -346,7 +346,7 @@ class Equipment(db.Model):
 
     @staticmethod
     def delete_equipment(id, user_now):
-        equipment = Equipment.query.filter(Equipment.id == id)
+        equipment = Equipment.query.filter(Equipment.id == id).first()
         if user_now and equipment:
             if user_now.role.permission == Permission.ADMIN or \
                     equipment.owner_id == user_now.id:
