@@ -1,7 +1,8 @@
 from flask import request, jsonify
 from . import api
+from .. import db
 from ..models import User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
-
+from ..models import SystemLog,SystemLogContent
 # 获取全部申请
 
 
@@ -44,13 +45,23 @@ def operate_applications(type):
         application = None
         if type == ApplicationType.APPLY_LENDER:
             application = LenderApplication.insert_lender_application(body)
+            item = "lender application"
         elif type == ApplicationType.APPLY_PUTON:
+            item = "puton application"
             application = EquipmentPutOnApplication.insert_equipment_puton_application(
                 body)
         elif type == ApplicationType.APPLY_BORROW:
+            item = "borrow application"
             application = EquipmentBorrowApplication.insert_equipment_borrow_application(
                 body)
         if application is not None:
+            log = SystemLog(content=SystemLogContent.INSERT_LOG.format(
+                username = user.username,id = user.id,
+                role = user.role.name, item = item,
+                item_id = application.id
+            ),type='insert')
+            db.session.add(log)
+            db.session.commit()
             return jsonify(application.to_json()), 200
 
         return jsonify({'error': 'invalid params'}), 400
@@ -62,18 +73,19 @@ def operate_applications(type):
 def get_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
-    res = None
+    application = None
     if not user:
         return jsonify({"error": 'invalid token'}), 401
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
-            res = LenderApplication.query.filter_by(id=id).first()
+            application = LenderApplication.query.filter_by(id=id).first()
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
-            res = EquipmentPutOnApplication.query.filter_by(id=id).first()
+            application = EquipmentPutOnApplication.query.filter_by(id=id).first()
         else:  # APPLY_BORROW
-            res = EquipmentBorrowApplication.query.filter_by(id=id).first()
-        if res is not None:
-            return jsonify(res.to_json()), 200
+            application = EquipmentBorrowApplication.query.filter_by(id=id).first()
+        if application is not None:
+
+            return jsonify(application.to_json()), 200
         return jsonify({'error': 'no such application'}), 404
 
 
@@ -81,18 +93,28 @@ def get_application(type, id):
 def delete_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
-    res = None
+    application = None
     if not user:
         return jsonify({"error": 'invalid token'}), 401
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
-            res = LenderApplication.delete_application(id,user)
+            item = "lender application"
+            application = LenderApplication.delete_application(id,user)
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
-            res = EquipmentPutOnApplication.delete_application(id,user)
+            item = "puton application"
+            application = EquipmentPutOnApplication.delete_application(id,user)
         else:  # APPLY_BORROW
-            res = EquipmentBorrowApplication.delete_application(id,user)
-        if res is not None:
-            return jsonify(res.to_json()), 200
+            item = 'borrow application'
+            application = EquipmentBorrowApplication.delete_application(id,user)
+        if application is not None:
+            log = SystemLog(content=SystemLogContent.DELETE_LOG.format(
+                username = user.username,id = user.id,
+                role = user.role.name, item = item,
+                item_id = application.id
+            ),type='delete')
+            db.session.add(log)
+            db.session.commit()
+            return jsonify(application.to_json()), 200
         return jsonify({'error': 'no such application'}), 404
 
 # 更新申请信息
@@ -102,19 +124,29 @@ def delete_application(type, id):
 def update_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
-    item = None
+    application = None
 
     if not user:
         return jsonify({"error": 401})
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
-            item = LenderApplication.update_application(id, user, request.json)
+            item = "lender application"
+            application = LenderApplication.update_application(id, user, request.json)
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
-            item = EquipmentPutOnApplication.update_application(
+            item = "puton application"
+            application = EquipmentPutOnApplication.update_application(
                 id, user, request.json)
         else:  # APPLY_BORROW
-            item = EquipmentBorrowApplication.update_application(
+            item = "borrow application"
+            application = EquipmentBorrowApplication.update_application(
                 id, user, request.json)
-        if item is not None:
-            return jsonify(item.to_json()), 200
+        if application is not None:
+            log = SystemLog(content=SystemLogContent.UPDATE_LOG.format(
+                username = user.username,id = user.id,
+                role = user.role.name, item = item,
+                item_id = application.id
+            ),type='update')
+            db.session.add(log)
+            db.session.commit()
+            return jsonify(application.to_json()), 200
         return jsonify({'error': 'no such application'}), 404

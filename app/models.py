@@ -44,6 +44,10 @@ class ApplicationType:
     APPLY_PUTON = 'puton'
     APPLY_BORROW = 'borrow'
 
+class SystemLogContent:
+    INSERT_LOG = "{username}(id:{id},role:{role}) added  a {item} (id={item_id}) "
+    UPDATE_LOG = "{username}(id:{id},role:{role}) updated a {item} (id={item_id})"
+    DELETE_LOG = "{username}(id:{id},role:{role}) deleted a {item} (id={item_id})"
 
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -86,7 +90,7 @@ class User(db.Model):
         'LenderApplication', backref='user', lazy='dynamic', cascade="all,delete")
     lab_name = db.Column('lab_name', db.String(64), default="")
     lab_location = db.Column('lab_location', db.String(64), default="")
-
+    comments = db.relationship('Comment',backref='user',lazy='dynamic',cascade="all,delete")
     sended_notifications = db.relationship(
         'Notification', backref='sender', lazy='select', foreign_keys='Notification.sender_id', cascade='all,delete')
     received_notifications = db.relationship(
@@ -208,11 +212,11 @@ class User(db.Model):
 
     @staticmethod
     def delete_user(id, user_now):
-        user_update = User.query.filter(User.id == id).first()
-        if user_now and user_update:
+        user_delete = User.query.filter(User.id == id).first()
+        if user_now and user_delete:
             if user_now.role.permission == Permission.ADMIN:
-                record = user_update.to_json()
-                db.session.delete(user_update)
+                record = user_delete.to_json()
+                db.session.delete(user_delete)
                 db.session.commit()
                 return record
         else:
@@ -234,7 +238,7 @@ class Equipment(db.Model):
     current_application_id = db.Column('current_application_id', db.Integer)
     puton_applications = db.relationship(
         'EquipmentPutOnApplication', backref='equipment', lazy='dynamic', cascade='all,delete')
-
+    comments = db.relationship('Comment',backref='equipment',lazy='dynamic',cascade="all,delete")
     def to_json(self):
         json_equipment = {
             'id': self.id,
@@ -981,4 +985,97 @@ class Notification(db.Model):
                 db.session.delete(notification)
                 db.session.commit()
                 return res
+        return None
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer,db.ForeignKey('users.id'))
+    equipment_id = db.Column(db.Integer,db.ForeignKey('equipments.id'))
+    content = db.Column('content', db.String(128))
+    comment_time = db.Column('comment_time', db.DateTime)
+    rating = db.Column('rating',db.Integer)
+
+    def __init__(self, **kwargs):
+        super(Comment, self).__init__(**kwargs)
+        self.comment_time = datetime.now()
+    
+    def to_json(self):
+        json_comment = {
+            'id': self.id,
+            'equipment_id':1,
+            'user': {
+                'username': self.user.username,
+                'user_id': self.user.id,
+                'avatar': self.user.avatar,
+            },
+            'content': self.content,
+            'comment_time': self.comment_time.timestamp()*1000,
+            'rating': self.rating
+        }
+        return json_comment
+
+    @staticmethod
+    def get_comments(user_now,body):
+        if user_now:
+            equipment_id = body.get('equipment_id')
+            comments = Comment.query.filter_by(equipment_id=equipment_id)
+            if comments:
+                page = int(body['page'])+1 if body.get['page'] else 1
+                page_size = int(body['page_size']) if body.get['page_size'] else 10
+                pa = comments.paginate(
+                    page, page_size, error_out=False
+                )
+                return pa.items(),pa.total
+        return None
+    
+    @staticmethod
+    def insert_comment(user_now,body):
+        if user_now:
+            user_id = body.get('user_id')
+            equipment_id = body.get('equipment_id')
+            content = body.get('content')
+            rating = body.get('rating')
+            if user_id and equipment_id and content and rating:
+                comment = Comment(user_id=user_id,equipment_id=equipment_id,content=content,rating=rating)
+                db.session.add(comment)
+                db.session.commit()
+        return None
+
+    @staticmethod
+    def delete_comment(id,user_now):
+        if user_now:
+            comment = Comment.query.filter_by(id = id).first()
+            if comment is not None:
+                if comment.user_id == user_now.id or user_now.role.permission == Permission.ADMIN:
+                    comment_json =comment.to_json()
+                    db.session.delete(comment)
+                    db.session.commit()
+                    return comment_json
+        return None
+
+class SystemLog(db.Model):
+    __tablename__ = 'system_logs'
+    id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    content = db.Column('content', db.String(64))
+    type = db.Column('type',db.String(64))
+
+    def to_json(self):
+        json_log = {
+            "id":self.id,
+            "content":self.content,
+            "type":self.type
+        }
+        return json_log
+    
+    @staticmethod
+    def get_logs(user_now,body):
+        if user_now and user_now.role.permission == Permission.ADMIN:
+            logs = SystemLog.query
+            page = int(body['page'])+1 if body.get['page'] else 1
+            page_size = int(body['page_size']) if body.get['page_size'] else 10
+            pa = logs.paginate(
+                page, page_size, error_out=False
+            )
+            return pa.items(),pa.total            
         return None
