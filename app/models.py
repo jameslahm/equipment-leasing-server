@@ -1,3 +1,4 @@
+from app.api import equipments
 from wsgiref.util import application_uri
 
 from sqlalchemy.sql.expression import null
@@ -24,7 +25,7 @@ class EquipmentStatus:
     UNREVIEWED = 'unreviewed'
     IDLE = 'idle'
     LEASE = 'lease'
-
+    REFUSED = 'refused'
 
 class ApplicationStatus:
     UNREVIEWED = 'unreviewed'
@@ -499,7 +500,10 @@ class EquipmentPutOnApplication(db.Model):
         candidate_id = body.get('candidate_id')
         usage = body.get('usage')
         name = body.get('name')
-        equipment = Equipment.insert_equipment(candidate_id, name, usage)
+        equipment_id = body.get('equipment_id')
+        equipment = Equipment.query.filter_by(id = equipment_id).first()
+        if equipment is None or equipment.status != EquipmentStatus.REFUSED:
+            equipment = Equipment.insert_equipment(candidate_id, name, usage)
         application = EquipmentPutOnApplication(candidate_id=candidate_id, reviewer_id=1,
                                                 usage=usage, application_time=datetime.now(),
                                                 equipment_id=equipment.id)
@@ -522,7 +526,7 @@ class EquipmentPutOnApplication(db.Model):
         if value == ApplicationStatus.REFUSE:
             equipment = Equipment.query.filter_by(
                 id=target.equipment_id).first()
-            Equipment.delete_equipment(target.equipment_id, User.get_admin())
+            equipment.status = EquipmentStatus.REFUSED
         notification = Notification(type=ApplicationType.APPLY_PUTON, sender_id=User.get_admin(
         ).id, receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
