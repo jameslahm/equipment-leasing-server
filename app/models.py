@@ -43,6 +43,7 @@ class ApplicationType:
     APPLY_LENDER = 'lender'
     APPLY_PUTON = 'puton'
     APPLY_BORROW = 'borrow'
+    APPLY_RETURN = 'return'
 
 class SystemLogContent:
     INSERT_LOG = "{username}(id:{id},role:{role}) added  a {item} (id={item_id}) "
@@ -552,7 +553,7 @@ class EquipmentPutOnApplication(db.Model):
         name = body.get('name')
         equipment_id = body.get('equipment_id')
         equipment = Equipment.query.filter_by(id=equipment_id).first()
-        if equipment is None or equipment.status != EquipmentStatus.REFUSED:
+        if equipment is None or (equipment is not None and equipment.status != EquipmentStatus.REFUSED):
             equipment = Equipment.insert_equipment(candidate_id, name, usage)
         application = EquipmentPutOnApplication(candidate_id=candidate_id,
                                                 application_time=datetime.now(),
@@ -1006,7 +1007,7 @@ class Comment(db.Model):
             'equipment_id':1,
             'user': {
                 'username': self.user.username,
-                'user_id': self.user.id,
+                'id': self.user.id,
                 'avatar': self.user.avatar,
             },
             'content': self.content,
@@ -1021,18 +1022,18 @@ class Comment(db.Model):
             equipment_id = body.get('equipment_id')
             comments = Comment.query.filter_by(equipment_id=equipment_id)
             if comments:
-                page = int(body['page'])+1 if body.get['page'] else 1
-                page_size = int(body['page_size']) if body.get['page_size'] else 10
+                page = int(body['page']) + 1 if body.get('page') else 1
+                page_size = int(body['page_size']) if body.get('page_size') else 10
                 pa = comments.paginate(
                     page, page_size, error_out=False
                 )
-                return pa.items(),pa.total
+                return pa.items,pa.total
         return None
     
     @staticmethod
     def insert_comment(user_now,body):
         if user_now:
-            user_id = body.get('user_id')
+            user_id = user_now.id
             equipment_id = body.get('equipment_id')
             content = body.get('content')
             rating = body.get('rating')
@@ -1040,6 +1041,7 @@ class Comment(db.Model):
                 comment = Comment(user_id=user_id,equipment_id=equipment_id,content=content,rating=rating)
                 db.session.add(comment)
                 db.session.commit()
+                return comment
         return None
 
     @staticmethod
@@ -1072,10 +1074,10 @@ class SystemLog(db.Model):
     def get_logs(user_now,body):
         if user_now and user_now.role.permission == Permission.ADMIN:
             logs = SystemLog.query
-            page = int(body['page'])+1 if body.get['page'] else 1
-            page_size = int(body['page_size']) if body.get['page_size'] else 10
+            page = int(body['page'])+1 if body.get('page') else 1
+            page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = logs.paginate(
                 page, page_size, error_out=False
             )
-            return pa.items(),pa.total            
+            return pa.items,pa.total            
         return None

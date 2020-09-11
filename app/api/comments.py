@@ -8,7 +8,7 @@ def get_comments(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
     if user:
         equipment_id = id
-        body = request.args
+        body = request.args.to_dict()
         body['equipment_id']=equipment_id
         items, total = Comment.get_comments(user, body)
         if items is not None:
