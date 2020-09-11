@@ -21,7 +21,7 @@ def equipment_operate(id):
         equipment = Equipment.query.filter_by(id=id).first()
         if equipment is not None:
             return jsonify(equipment.to_json()),200
-        return jsonify({'error':'no such equipment'}),400
+        return jsonify({'error':'no such equipment'}),404
     if request.method == "PUT":
         update = Equipment.update_equipment(id, current_user, request.json)
         if update is None:
