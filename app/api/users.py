@@ -51,7 +51,7 @@ def register():
     password = data.get('password')
     user = User.query.filter_by(email=email).first()
     if user is not None:
-        return jsonify({'error': 'this email has been registered'})
+        return jsonify({'error': 'this email has been registered'}),400
     else:
         user = User.query.filter_by(username=username).first()
         if user is not None:
