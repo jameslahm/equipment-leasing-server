@@ -1,4 +1,3 @@
-from crypt import methods
 from flask import jsonify,request
 from flask import request
 from ..models import Comment,User,Equipment

@@ -2,7 +2,7 @@ from flask import jsonify, request
 from flask import request
 from flask import current_app
 from flask_mail import Mail, Message
-from ..models import SystemLogContent, User,SystemLog,
+from ..models import SystemLogContent,User,SystemLog
 from . import api
 from .. import db
 from threading import Thread
