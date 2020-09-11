@@ -97,7 +97,11 @@ def operate_user(id):
     if not operator:
         return jsonify({'error': 'invalid token'}), 401
     if request.method == 'GET':
-        return jsonify(User.query.filter_by(id=id).first().to_json()), 200
+        user = User.query.filter_by(id=id).first()
+        if user:
+            return jsonify(user.to_json()), 200
+        else:
+            return jsonify({"error":"no such user"}),404
     if request.method == 'PUT':
         data = request.json
         user = User.update_userinfo(id, operator, data)

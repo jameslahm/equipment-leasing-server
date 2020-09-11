@@ -481,7 +481,19 @@ class LenderApplication(db.Model):
                 type='lender', application_id=id).delete()
             db.session.commit()
             return res
+        else:
+            return None
 
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='lender', application_id=target.id).delete()
+        # db.session.commit()
+
+
+db.event.listen(LenderApplication, 'before_delete',
+                LenderApplication.on_delete)
 
 db.event.listen(LenderApplication.status, 'set',
                 LenderApplication.on_changed_status)
@@ -625,7 +637,20 @@ class EquipmentPutOnApplication(db.Model):
                 type='puton', application_id=id).delete()
             db.session.commit()
             return res
+        else:
+            return None
 
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='puton', application_id=target.id).delete()
+        print(target)
+        # db.session.commit()
+
+
+db.event.listen(EquipmentPutOnApplication, 'before_delete',
+                EquipmentPutOnApplication.on_delete)
 
 db.event.listen(EquipmentPutOnApplication.status, 'set',
                 EquipmentPutOnApplication.on_changed_status)
@@ -784,7 +809,20 @@ class EquipmentBorrowApplication(db.Model):
                 type='borrow', application_id=id).delete()
             db.session.commit()
             return res
+        else:
+            return None
 
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='borrow', application_id=target.id).delete()
+        print(target)
+        # db.session.commit()
+
+
+db.event.listen(EquipmentBorrowApplication, 'before_delete',
+                EquipmentBorrowApplication.on_delete)
 
 db.event.listen(EquipmentBorrowApplication.status, 'set',
                 EquipmentBorrowApplication.on_changed_status)

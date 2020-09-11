@@ -25,10 +25,10 @@ def equipment_operate(id):
     if request.method == "PUT":
         update = Equipment.update_equipment(id, current_user, request.json)
         if update is None:
-            return jsonify({"error":"no such equipment"}, 400)
+            return jsonify({"error":"no such equipment"}, 404)
         return jsonify(update.to_json()),200
     if request.method == "DELETE":
         delete = Equipment.delete_equipment(id, current_user)
         if delete == None:
-            return jsonify({"error":"no such equipment"}), 400
+            return jsonify({"error":"no such equipment"}), 404
         return jsonify(delete),200
