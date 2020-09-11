@@ -74,7 +74,7 @@ def get_application(type, id):
             res = EquipmentBorrowApplication.query.filter_by(id=id).first()
         if res is not None:
             return jsonify(res.to_json()), 200
-        return jsonify({'error': 'no such application'}), 400
+        return jsonify({'error': 'no such application'}), 404
 
 
 @api.route("/applications/<type>/<int:id>", methods=['DELETE'])
@@ -86,14 +86,14 @@ def delete_application(type, id):
         return jsonify({"error": 'invalid token'}), 401
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
-            res = LenderApplication.delete_application(id)
+            res = LenderApplication.delete_application(id,user)
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
-            res = EquipmentPutOnApplication.delete_application(id)
+            res = EquipmentPutOnApplication.delete_application(id,user)
         else:  # APPLY_BORROW
-            res = EquipmentBorrowApplication.delete_application(id)
+            res = EquipmentBorrowApplication.delete_application(id,user)
         if res is not None:
             return jsonify(res.to_json()), 200
-        return jsonify({'error': 'no such application'}), 400
+        return jsonify({'error': 'no such application'}), 404
 
 # 更新申请信息
 
@@ -117,4 +117,4 @@ def update_application(type, id):
                 id, user, request.json)
         if item is not None:
             return jsonify(item.to_json()), 200
-        return jsonify({'error': 'no such application'}), 400
+        return jsonify({'error': 'no such application'}), 404

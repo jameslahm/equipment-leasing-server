@@ -11,12 +11,12 @@ def operate_notification(id):
             item = Notification.update_notification(id, user, request.json)
             if item is not None:
                 return jsonify(item), 200
-            return jsonify({'error': 'no such notification'}), 400
+            return jsonify({'error': 'no such notification'}), 404
         if request.method == 'DELETE':
             item = Notification.delete_notification(id, user)
             if item is not None:
                 return jsonify(item), 200
-            return jsonify({'error': 'no such notification'}), 400
+            return jsonify({'error': 'no such notification'}), 404
     return jsonify({'error': 'invalid token'}), 401
 
 
@@ -27,7 +27,7 @@ def get_notification(id):
         notification = Notification.query.filter_by(id=id).first()
         if notification is not None and notification.receiver_id==user.id:
             return jsonify(notification.to_json()), 200
-        return jsonify({'error': 'no such notification'}), 400
+        return jsonify({'error': 'no such notification'}), 404
 
 
 @api.route('/notifications', methods=['GET'])
@@ -41,5 +41,5 @@ def get_notifications():
                 'total': total
             }), 200
         else:
-            return jsonify({'error': 'no such notification'}), 400
+            return jsonify({'error': 'no such notification'}), 404
     return jsonify({'error': 'invalid token'}), 401
