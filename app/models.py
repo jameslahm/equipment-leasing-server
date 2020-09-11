@@ -24,6 +24,7 @@ class EquipmentStatus:
     LEASE = 'lease'
     REFUSED = 'refused'
 
+
 class ApplicationStatus:
     UNREVIEWED = 'unreviewed'
     AGREE = 'agree'
@@ -408,9 +409,10 @@ class LenderApplication(db.Model):
     @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
         target.review_time = datetime.now()
-        User.update_userinfo(target.candidate_id, User.get_admin(), {
-            'role': 'lender'
-        })
+        if(value == ApplicationStatus.AGREE):
+            User.update_userinfo(target.candidate_id, User.get_admin(), {
+                'role': 'lender'
+            })
         notification = Notification(type=ApplicationType.APPLY_LENDER, sender_id=User.get_admin(
         ).id, receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
@@ -545,13 +547,13 @@ class EquipmentPutOnApplication(db.Model):
         usage = body.get('usage')
         name = body.get('name')
         equipment_id = body.get('equipment_id')
-        equipment = Equipment.query.filter_by(id = equipment_id).first()
+        equipment = Equipment.query.filter_by(id=equipment_id).first()
         if equipment is None or equipment.status != EquipmentStatus.REFUSED:
             equipment = Equipment.insert_equipment(candidate_id, name, usage)
-        application = EquipmentPutOnApplication(candidate_id=candidate_id, reviewer_id=1,
-                                                usage=usage, application_time=datetime.now(),
+        application = EquipmentPutOnApplication(candidate_id=candidate_id,
+                                                application_time=datetime.now(),
                                                 equipment_id=equipment.id)
-        equipment.status=EquipmentStatus.UNREVIEWED
+        equipment.status = EquipmentStatus.UNREVIEWED
         db.session.add(application)
         db.session.commit()
         notification = Notification(type=ApplicationType.APPLY_PUTON, sender_id=candidate_id,
