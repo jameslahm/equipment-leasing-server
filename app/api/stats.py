@@ -1,7 +1,6 @@
-from app.api import equipments
-from flask import request,jsonify
+from flask import jsonify
 from . import api
-from ..models import User,Equipment,ApplicationType,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
+from ..models import User,Equipment,LenderApplication,EquipmentPutOnApplication,EquipmentBorrowApplication
 from ..models import EquipmentStatus
 import datetime
 
@@ -18,8 +17,8 @@ def stat():
     stat['idle_equipments'] = Equipment.query.filter_by(status=EquipmentStatus.IDLE).count()
     stat['lease_equipments'] = Equipment.query.filter_by(status=EquipmentStatus.LEASE).count()
     stat['lender_applications'] = LenderApplication.query.count()
-    stat['equipemnt_puton_application'] = EquipmentPutOnApplication.query.count()
-    stat['equipment_borrow_application'] = EquipmentBorrowApplication.query.count()
+    stat['equipment_puton_applications'] = EquipmentPutOnApplication.query.count()
+    stat['equipment_borrow_applications'] = EquipmentBorrowApplication.query.count()
     borrow_log = [0,0,0,0,0,0,0]
     for i in range(0,7):
         equipments = EquipmentBorrowApplication.query.all()

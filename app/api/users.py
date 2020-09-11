@@ -1,9 +1,8 @@
-from flask import Blueprint, Response, render_template, jsonify, request
-from flask import request, abort, make_response
-from flask import json, current_app
-from flask.helpers import flash, url_for
+from flask import jsonify, request
+from flask import request
+from flask import current_app
 from flask_mail import Mail, Message
-from ..models import User, Role
+from ..models import User
 from . import api
 from .. import db
 from threading import Thread
@@ -17,9 +16,9 @@ def send_async_email(app, msg):
 
 def send_mail(to, subject, template, token):
     app = current_app._get_current_object()
-    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+subject,
+    msg = Message(current_app.config['FLASKY_MAIL_SUBJECT_PREFIX']+": "+subject,
                   sender=current_app.config['MAIL_USERNAME'], recipients=[to])
-    msg.html = "<h3>请确认注册</h3><a href='http://127.0.0.1/users/confirm?confirm_token={}'>http://127.0.0.1/users/confirm?confirm_token={}</a>".format(
+    msg.html = "<h3>Please click the link below to confirm your account </h3><a href='https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}'>https://equipment-leasing-web.vercel.app/users/confirm?confirm_token={}</a>".format(
         token, token)
     thr = Thread(target=send_async_email, args=[app, msg])
     thr.start()
@@ -52,7 +51,7 @@ def register():
     password = data.get('password')
     user = User.query.filter_by(email=email).first()
     if user is not None:
-        return jsonify({'error': 'this email has been registered'})
+        return jsonify({'error': 'this email has been registered'}),400
     else:
         user = User.query.filter_by(username=username).first()
         if user is not None:
@@ -63,7 +62,7 @@ def register():
         jwt = user.generate_auth_token(expiration=86400*365)
         user_uncomfirmed = user.to_json()
         user_uncomfirmed['confirm_token'] = jwt
-        send_mail(email, '确认你的账户', '/confirm', jwt)
+        send_mail(email, 'Activate your account', '/confirm', jwt)
         return jsonify(user_uncomfirmed)
 
 
@@ -98,7 +97,11 @@ def operate_user(id):
     if not operator:
         return jsonify({'error': 'invalid token'}), 401
     if request.method == 'GET':
-        return jsonify(User.query.filter_by(id=id).first().to_json()), 200
+        user = User.query.filter_by(id=id).first()
+        if user:
+            return jsonify(user.to_json()), 200
+        else:
+            return jsonify({"error":"no such user"}),404
     if request.method == 'PUT':
         data = request.json
         user = User.update_userinfo(id, operator, data)
