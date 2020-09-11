@@ -1,3 +1,4 @@
+from sqlalchemy.sql.expression import false
 from . import db
 from flask import current_app
 from datetime import datetime
@@ -209,7 +210,7 @@ class User(db.Model):
         user_update = User.query.filter(User.id == id).first()
         if user_now and user_update:
             if user_now.role.permission == Permission.ADMIN:
-                record=user_update.to_json()
+                record = user_update.to_json()
                 db.session.delete(user_update)
                 db.session.commit()
                 return record
@@ -921,18 +922,19 @@ class Notification(db.Model):
             notification = Notification.query.filter(
                 Notification.id == id).first()
             if notification is not None:
-                notification.isRead = body.get('isRead')
+                notification.isRead = body.get('isRead') or notification.isRead
                 db.session.commit()
-                return notification
+                return notification.to_json()
         return None
 
     @staticmethod
     def delete_notification(id, user_now):
         if user_now:
             notification = Notification.query.filter(
-                Notification.id == id).first().to_json()
+                Notification.id == id).first()
             if notification is not None:
+                res = notification.to_json()
                 db.session.delete(notification)
                 db.session.commit()
-                return notification
+                return res
         return None
