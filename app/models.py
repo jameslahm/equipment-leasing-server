@@ -1,6 +1,4 @@
-from wsgiref.util import application_uri
-
-from sqlalchemy.sql.expression import null
+from sqlalchemy.sql.expression import false
 from . import db
 from flask import current_app
 from datetime import datetime
@@ -76,16 +74,31 @@ class User(db.Model):
     email = db.Column('email', db.String(64), unique=True)
     username = db.Column('username', db.String(64), unique=True)
     role_id = db.Column(db.Integer, db.ForeignKey(
-        'roles.id', ondelete='cascade'))
+        'roles.id'))
     password_hash = db.Column(
         'password_hash', db.String(64))
     confirmed = db.Column('confirmed', db.Boolean, default=False)
     avatar = db.Column('avatar', db.String(128))
-    equipments = db.relationship('Equipment', backref='owner', lazy='dynamic')
-    lender_app = db.relationship(
-        'LenderApplication', backref='user', lazy='dynamic')
+    equipments = db.relationship('Equipment', backref='owner',
+                                 lazy='dynamic', cascade="all,delete")
+    lender_application = db.relationship(
+        'LenderApplication', backref='user', lazy='dynamic', cascade="all,delete")
     lab_name = db.Column('lab_name', db.String(64), default="")
     lab_location = db.Column('lab_location', db.String(64), default="")
+
+    sended_notifications = db.relationship(
+        'Notification', backref='sender', lazy='select', foreign_keys='Notification.sender_id', cascade='all,delete')
+    received_notifications = db.relationship(
+        'Notification', backref='receiver', lazy='select', foreign_keys='Notification.receiver_id', cascade='all,delete')
+
+    puton_applications = db.relationship(
+        'EquipmentPutOnApplication', backref='candidate', lazy='select', foreign_keys='EquipmentPutOnApplication.candidate_id', cascade="all,delete")
+
+    review_borrow_applications = db.relationship(
+        'EquipmentBorrowApplication', backref='reviewer', lazy='select', foreign_keys='EquipmentBorrowApplication.reviewer_id', cascade="all,delete")
+
+    borrow_applications = db.relationship(
+        'EquipmentBorrowApplication', backref='candidate', lazy='select', foreign_keys='EquipmentBorrowApplication.candidate_id', cascade="all,delete")
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -197,8 +210,8 @@ class User(db.Model):
         user_update = User.query.filter(User.id == id).first()
         if user_now and user_update:
             if user_now.role.permission == Permission.ADMIN:
-                record = User.query.filter(User.id == id).first().to_json()
-                User.query.filter(User.id == id).delete()
+                record = user_update.to_json()
+                db.session.delete(user_update)
                 db.session.commit()
                 return record
         else:
@@ -209,15 +222,17 @@ class Equipment(db.Model):
     __tablename__ = 'equipments'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     owner_id = db.Column(db.Integer, db.ForeignKey(
-        'users.id', ondelete='cascade'))
+        'users.id'))
     status = db.Column('status', db.String(
         64), default=EquipmentStatus.UNREVIEWED)
     name = db.Column('name', db.String(64))
     usage = db.Column('usage', db.String(64))
     borrow_applications = db.relationship(
-        'EquipmentBorrowApplication', backref='equipment', lazy='dynamic')
+        'EquipmentBorrowApplication', backref='equipment', lazy='dynamic', cascade="all,delete")
     confirmed_back = db.Column('comfirmed_back', db.Boolean, default=True)
     current_application_id = db.Column('current_application_id', db.Integer)
+    puton_applications = db.relationship(
+        'EquipmentPutOnApplication', backref='equipment', lazy='dynamic', cascade='all,delete')
 
     def to_json(self):
         json_equipment = {
@@ -331,13 +346,12 @@ class Equipment(db.Model):
 
     @staticmethod
     def delete_equipment(id, user_now):
-        equipment = Equipment.query.filter(Equipment.id == id)
+        equipment = Equipment.query.filter(Equipment.id == id).first()
         if user_now and equipment:
             if user_now.role.permission == Permission.ADMIN or \
                     equipment.owner_id == user_now.id:
-                record = Equipment.query.filter(
-                    Equipment.id == id).first().to_json()
-                Equipment.query.filter(Equipment.id == id).delete()
+                record = equipment.to_json()
+                db.session.delete(equipment)
                 db.session.commit()
                 return record
         return None
@@ -347,7 +361,7 @@ class LenderApplication(db.Model):
     __tablename__ = 'lender_applications'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     candidate_id = db.Column(db.Integer, db.ForeignKey(
-        'users.id', ondelete='cascade'))
+        'users.id'))
     lab_name = db.Column('lab_name', db.String(64))
     lab_location = db.Column('lab_location', db.String(64))
     status = db.Column('status', db.String(
@@ -455,6 +469,31 @@ class LenderApplication(db.Model):
             return application
         return None
 
+    @staticmethod
+    def delete_application(id, user_now):
+        if user_now.id == User.get_admin().id:
+            application = LenderApplication.query.filter_by(id=id).first()
+            if application is None:
+                return None
+            res = application.to_json()
+            db.session.delete(application)
+            Notification.query.filter_by(
+                type='lender', application_id=id).delete()
+            db.session.commit()
+            return res
+        else:
+            return None
+
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='lender', application_id=target.id).delete()
+        # db.session.commit()
+
+
+db.event.listen(LenderApplication, 'before_delete',
+                LenderApplication.on_delete)
 
 db.event.listen(LenderApplication.status, 'set',
                 LenderApplication.on_changed_status)
@@ -464,31 +503,24 @@ class EquipmentPutOnApplication(db.Model):
     __tablename__ = 'equipemnt_puton_applications'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     candidate_id = db.Column(db.Integer, db.ForeignKey(
-        'users.id', ondelete='cascade'))
+        'users.id'))
     equipment_id = db.Column(db.Integer, db.ForeignKey(
-        'equipments.id', ondelete='cascade'))
+        'equipments.id'))
     application_time = db.Column('application_time', db.DateTime)
     status = db.Column('status', db.String(
         64), default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
-    reviewer_id = db.Column(db.Integer, db.ForeignKey(
-        'users.id', ondelete='cascade'))
+    # reviewer_id = db.Column(db.Integer, db.ForeignKey(
+    #     'users.id', ondelete='cascade'))
     # TODO:
-    candidate = db.relationship(
-        'User', backref='puton_applications', lazy='select', foreign_keys=[candidate_id])
-    reviewer = db.relationship(
-        'User', backref='review_puton_applications', lazy='select', foreign_keys=[reviewer_id])
+
+    # reviewer = db.relationship(
+    #     'User', backref='review_puton_applications', lazy='select', foreign_keys=[reviewer_id])
 
     def to_json(self):
         json_equipmentBorrowApplication = {
             'id': self.id,
             'status': self.status,
-            'reviewer': {
-                'username': self.reviewer.username,
-                'email': self.reviewer.email,
-                'avatar': self.reviewer.avatar,
-                'id': self.reviewer_id
-            },
             'equipment': {
                 'id': self.equipment_id,
                 'name': Equipment.query.filter_by(id=self.equipment_id).first().name,
@@ -513,7 +545,7 @@ class EquipmentPutOnApplication(db.Model):
         usage = body.get('usage')
         name = body.get('name')
         equipment = Equipment.insert_equipment(candidate_id, name, usage)
-        application = EquipmentPutOnApplication(candidate_id=candidate_id, reviewer_id=1,
+        application = EquipmentPutOnApplication(candidate_id=candidate_id,
                                                 application_time=datetime.now(),
                                                 equipment_id=equipment.id)
         db.session.add(application)
@@ -555,9 +587,9 @@ class EquipmentPutOnApplication(db.Model):
             if body.get('candidate_id'):
                 applications = applications.filter(
                     EquipmentPutOnApplication.candidate_id == body['candidate_id'])
-            if body.get('reviewer_id'):
-                applications = applications.filter(
-                    EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
+            # if body.get('reviewer_id'):
+            #     applications = applications.filter(
+            #         EquipmentPutOnApplication.reviewer_id == body['reviewer_id'])
             if body.get('order'):
                 if body.get('order_by'):
                     if body['order_by'] == 'application_time':
@@ -592,6 +624,33 @@ class EquipmentPutOnApplication(db.Model):
             return application
         return None
 
+    @staticmethod
+    def delete_application(id, user_now):
+        if user_now.id == User.get_admin().id:
+            application = EquipmentPutOnApplication.query.filter_by(
+                id=id).first()
+            if application is None:
+                return None
+            res = application.to_json()
+            db.session.delete(application)
+            Notification.query.filter_by(
+                type='puton', application_id=id).delete()
+            db.session.commit()
+            return res
+        else:
+            return None
+
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='puton', application_id=target.id).delete()
+        print(target)
+        # db.session.commit()
+
+
+db.event.listen(EquipmentPutOnApplication, 'before_delete',
+                EquipmentPutOnApplication.on_delete)
 
 db.event.listen(EquipmentPutOnApplication.status, 'set',
                 EquipmentPutOnApplication.on_changed_status)
@@ -601,23 +660,20 @@ class EquipmentBorrowApplication(db.Model):
     __tablename__ = 'equipment_borrow_applications'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     candidate_id = db.Column('candidate_id', db.ForeignKey(
-        'users.id', ondelete='cascade'))
-    candidate = db.relationship(
-        'User', backref='borrow_applications', lazy='select', foreign_keys=[candidate_id])
+        'users.id'))
+
     return_time = db.Column('return_time', db.DateTime)
     usage = db.Column('usage', db.String(64))
 
     equipment_id = db.Column(db.Integer, db.ForeignKey(
-        'equipments.id', ondelete='cascade'))
+        'equipments.id'))
 
     application_time = db.Column('application_time', db.DateTime)
     status = db.Column('status', db.String(
         64), default=ApplicationStatus.UNREVIEWED)
     review_time = db.Column('review_time', db.DateTime)
     reviewer_id = db.Column('reviewer_id', db.Integer,
-                            db.ForeignKey('users.id', ondelete='cascade'))
-    reviewer = db.relationship(
-        'User', backref='review_borrow_applications', lazy='select', foreign_keys=[reviewer_id])
+                            db.ForeignKey('users.id'))
 
     def to_json(self):
         json_equipmentBorrowApplication = {
@@ -740,6 +796,33 @@ class EquipmentBorrowApplication(db.Model):
             return application
         return None
 
+    @staticmethod
+    def delete_application(id, user_now):
+        if user_now.id == User.get_admin().id:
+            application = EquipmentBorrowApplication.query.filter_by(
+                id=id).first()
+            if application is None:
+                return None
+            res = application.to_json()
+            db.session.delete(application)
+            Notification.query.filter_by(
+                type='borrow', application_id=id).delete()
+            db.session.commit()
+            return res
+        else:
+            return None
+
+    @staticmethod
+    def on_delete(mapper, connection, target):
+        print(target)
+        Notification.query.filter_by(
+            type='borrow', application_id=target.id).delete()
+        print(target)
+        # db.session.commit()
+
+
+db.event.listen(EquipmentBorrowApplication, 'before_delete',
+                EquipmentBorrowApplication.on_delete)
 
 db.event.listen(EquipmentBorrowApplication.status, 'set',
                 EquipmentBorrowApplication.on_changed_status)
@@ -749,13 +832,9 @@ class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     sender_id = db.Column('sender_id', db.Integer,
-                          db.ForeignKey('users.id', ondelete='cascade'))
+                          db.ForeignKey('users.id'))
     receiver_id = db.Column('receiver_id', db.Integer,
-                            db.ForeignKey('users.id', ondelete='cascade'))
-    sender = db.relationship(
-        'User', backref='sended_notifications', lazy='select', foreign_keys=[sender_id])
-    receiver = db.relationship(
-        'User', backref='received_notifications', lazy='select', foreign_keys=[receiver_id])
+                            db.ForeignKey('users.id'))
     content = db.Column('content', db.String(64))
     notification_time = db.Column('notification_time', db.DateTime)
     isRead = db.Column('isRead', db.Boolean, default=False)
@@ -847,6 +926,24 @@ class Notification(db.Model):
                 isRead = True if body['isRead'] == 'true' else False
                 notifications = notifications.filter(
                     Notification.isRead == isRead)
+            order = body.get('order')
+            if order == 'asc':
+                order_by = body.get('order_by')
+                if order_by == 'id':
+                    notifications = notifications.order_by(
+                        Notification.id.asc())
+                if order_by == 'notification_time':
+                    notifications = notifications.order_by(
+                        Notification.id.asc())
+            if order == 'desc':
+                order_by = body.get('order_by')
+                if order_by == 'id':
+                    notifications = notifications.order_by(
+                        Notification.id.desc())
+                if order_by == 'notification_time':
+                    notifications = notifications.order_by(
+                        Notification.id.desc())
+
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = notifications.paginate(
@@ -863,18 +960,19 @@ class Notification(db.Model):
             notification = Notification.query.filter(
                 Notification.id == id).first()
             if notification is not None:
-                notification.isRead = body.get('isRead')
+                notification.isRead = body.get('isRead') or notification.isRead
                 db.session.commit()
-                return notification
+                return notification.to_json()
         return None
 
     @staticmethod
     def delete_notification(id, user_now):
         if user_now:
             notification = Notification.query.filter(
-                Notification.id == id).first().to_json()
+                Notification.id == id).first()
             if notification is not None:
-                Notification.query.filter(Notification.id == id).delete()
+                res = notification.to_json()
+                db.session.delete(notification)
                 db.session.commit()
-                return notification
+                return res
         return None
