@@ -10,7 +10,7 @@ def operate_notification(id):
         if request.method == 'PUT':
             item = Notification.update_notification(id, user, request.json)
             if item is not None:
-                return jsonify(item.to_json()), 200
+                return jsonify(item), 200
             return jsonify({'error': 'no such notification'}), 400
         if request.method == 'DELETE':
             item = Notification.delete_notification(id, user)
