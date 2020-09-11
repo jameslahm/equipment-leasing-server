@@ -1,10 +1,7 @@
-from flask import Blueprint,Response,render_template,jsonify,request
-from flask import request,abort,make_response
-from flask import json, current_app
-from flask.helpers import flash, url_for
+from flask import jsonify,request
+from flask import request
 from ..models import Equipment,User
 from . import api
-from .. import db
 
 @api.route('/equipments',methods=['GET'])
 def get_equiments():
@@ -24,14 +21,14 @@ def equipment_operate(id):
         equipment = Equipment.query.filter_by(id=id).first()
         if equipment is not None:
             return jsonify(equipment.to_json()),200
-        return jsonify({'error':'no such equipment'}),400
+        return jsonify({'error':'no such equipment'}),404
     if request.method == "PUT":
         update = Equipment.update_equipment(id, current_user, request.json)
         if update is None:
-            return jsonify({"error":"no such equipment"}, 400)
+            return jsonify({"error":"no such equipment"}, 404)
         return jsonify(update.to_json()),200
     if request.method == "DELETE":
         delete = Equipment.delete_equipment(id, current_user)
         if delete == None:
-            return jsonify({"error":"no such equipment"}), 400
+            return jsonify({"error":"no such equipment"}), 404
         return jsonify(delete),200
