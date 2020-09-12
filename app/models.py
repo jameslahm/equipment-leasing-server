@@ -1018,7 +1018,9 @@ class Comment(db.Model):
     def get_comments(user_now,body):
         if user_now:
             equipment_id = body.get('equipment_id')
-            comments = Comment.query.filter_by(equipment_id=equipment_id)
+            comments = Comment.query.filter_by(equipment_id=equipment_id).order_by(
+                Comment.comment_time.desc()
+            )
             if comments:
                 page = int(body['page']) + 1 if body.get('page') else 1
                 page_size = int(body['page_size']) if body.get('page_size') else 10
