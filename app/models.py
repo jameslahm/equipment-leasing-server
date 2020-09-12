@@ -194,7 +194,7 @@ class User(db.Model):
             if body.get('username'):
                 user_update.username = body.get('username')
             if body.get('password'):
-                user_update.password = body.get('username')
+                user_update.password = body.get('password')
             if body.get('avatar'):
                 user_update.avatar = body.get('avatar')
 
@@ -470,9 +470,11 @@ class LenderApplication(db.Model):
 
     @staticmethod
     def update_application(id, user_now, body):
-        if user_now:
+        if user_now :
             application = LenderApplication.query.filter(
                 LenderApplication.id == id).first()
+            if not application:
+                return None
             application.status = body.get('status')
             db.session.commit()
             return application
@@ -631,6 +633,8 @@ class EquipmentPutOnApplication(db.Model):
         if user_now:
             application = EquipmentPutOnApplication.query.filter(
                 EquipmentPutOnApplication.id == id).first()
+            if not application:
+                return None
             application.status = body.get('status')
             db.session.commit()
             return application
@@ -802,6 +806,8 @@ class EquipmentBorrowApplication(db.Model):
         if user_now:
             application = EquipmentBorrowApplication.query.filter(
                 EquipmentBorrowApplication.id == id).first()
+            if not application:
+                return None
             application.status = body.get('status')
             application.reviewer_id = user_now.id
             application.review_time = datetime.now()

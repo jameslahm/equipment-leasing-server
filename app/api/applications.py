@@ -2,7 +2,7 @@ from flask import request, jsonify
 from datetime import datetime
 from . import api
 from .. import db
-from ..models import User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
+from ..models import ApplicationStatus, User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
 from ..models import SystemLog, SystemLogContent
 # 获取全部申请
 
@@ -136,14 +136,37 @@ def update_application(type, id):
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             item = "lender application"
+            application = LenderApplication.query.filter_by(id=id).first()
+            if application and application.status != ApplicationStatus.UNREVIEWED:
+                return jsonify({"error": "bad request"}), 400
+
+            if user.role.name != 'admin':
+                return jsonify({"error": "bad request"}), 400
+
             application = LenderApplication.update_application(
                 id, user, request.json)
-        elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
+        if type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
             item = "puton application"
+            application = EquipmentPutOnApplication.query.filter_by(
+                id=id).first()
+            if application and application.status != ApplicationStatus.UNREVIEWED:
+                return jsonify({"error": "bad request"}), 400
+
+            if user.role.name != 'admin':
+                return jsonify({"error": "bad request"}), 400
+
             application = EquipmentPutOnApplication.update_application(
                 id, user, request.json)
-        else:  # APPLY_BORROW
+        if type == ApplicationType.APPLY_BORROW:  # APPLY_BORROW
             item = "borrow application"
+            application = EquipmentBorrowApplication.query.filter_by(
+                id=id).first()
+            if application and application.status != ApplicationStatus.UNREVIEWED:
+                return jsonify({"error": "bad request"}), 400
+
+            if application and (application.reviewer_id != user.id and user.role.name != 'admin'):
+                return jsonify({"error": "bad request"}), 400
+
             application = EquipmentBorrowApplication.update_application(
                 id, user, request.json)
         if application is not None:
