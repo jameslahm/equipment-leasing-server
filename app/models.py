@@ -709,7 +709,8 @@ class EquipmentBorrowApplication(db.Model):
                 'email': self.candidate.email,
                 'avatar': self.candidate.avatar,
                 'id': self.candidate_id
-            }
+            },
+            'return_time':self.return_time.timestamp()*1000
         }
         return json_equipmentBorrowApplication
 
@@ -1030,13 +1031,12 @@ class Comment(db.Model):
         return None
     
     @staticmethod
-    def insert_comment(user_now,body):
+    def insert_comment(user_now,equipment_id,body):
         if user_now:
             user_id = user_now.id
-            equipment_id = body.get('equipment_id')
             content = body.get('content')
             rating = body.get('rating')
-            if user_id and equipment_id and content and rating:
+            if user_id and content and rating:
                 comment = Comment(user_id=user_id,equipment_id=equipment_id,content=content,rating=rating)
                 db.session.add(comment)
                 db.session.commit()
