@@ -41,9 +41,9 @@ def operate_applications(type):
         return jsonify({'error': 'invalid params'}), 400
     if request.method == 'POST':
         body = request.json
-        print(body)
         body['candidate_id'] = user.id
         application = None
+        item=""
         if type == ApplicationType.APPLY_LENDER:
             application = LenderApplication.insert_lender_application(body)
             item = "lender application"

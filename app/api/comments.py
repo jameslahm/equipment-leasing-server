@@ -10,7 +10,6 @@ def get_comments(id):
         body = request.args.to_dict()
         body['equipment_id']=equipment_id
         items, total = Comment.get_comments(user, body)
-        print(items)
         if items is not None:
             return jsonify({
                 'comments': [x.to_json() for x in items],

@@ -495,7 +495,6 @@ class LenderApplication(db.Model):
 
     @staticmethod
     def on_delete(mapper, connection, target):
-        print(target)
         Notification.query.filter_by(
             type='lender', application_id=target.id).delete()
         # db.session.commit()
@@ -655,10 +654,8 @@ class EquipmentPutOnApplication(db.Model):
 
     @staticmethod
     def on_delete(mapper, connection, target):
-        print(target)
         Notification.query.filter_by(
             type='puton', application_id=target.id).delete()
-        print(target)
         # db.session.commit()
 
 
@@ -828,10 +825,8 @@ class EquipmentBorrowApplication(db.Model):
 
     @staticmethod
     def on_delete(mapper, connection, target):
-        print(target)
         Notification.query.filter_by(
             type='borrow', application_id=target.id).delete()
-        print(target)
         # db.session.commit()
 
 
