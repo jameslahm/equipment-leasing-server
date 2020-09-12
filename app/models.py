@@ -1076,7 +1076,7 @@ class SystemLog(db.Model):
             logs = SystemLog.query
             type = body.get('type')
             start_time = int(body.get('start_time'))
-            end_time = int(body.get('end time'))
+            end_time = int(body.get('end_time'))
 
             if type :
                logs = logs.filter_by(type = type) 
