@@ -75,7 +75,7 @@ def confirm():
         jwt = user.generate_auth_token(expiration=86400*365)
         user_comfirmed = user.to_json()
         user_comfirmed['token'] = jwt
-        log = SystemLog(content="new user register id:{}".format(user.id),type='insert',log_time=datetime.now())
+        log = SystemLog(content="new user register id={}".format(user.id),type='insert',log_time=datetime.now())
         db.session.add(log)
         db.session.commit()
         return jsonify(user_comfirmed), 200
