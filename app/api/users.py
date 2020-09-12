@@ -1,6 +1,5 @@
 from datetime import datetime
 from flask import jsonify, request
-from flask import request
 from flask import current_app
 from flask_mail import Mail, Message
 from ..models import SystemLogContent,User,SystemLog

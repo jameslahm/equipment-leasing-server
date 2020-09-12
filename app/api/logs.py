@@ -1,5 +1,4 @@
 from flask import jsonify,request
-from flask import request
 from ..models import SystemLog,User
 from . import api
 
