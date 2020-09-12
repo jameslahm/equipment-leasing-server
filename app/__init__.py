@@ -18,7 +18,7 @@ db = SQLAlchemy(metadata=MetaData(naming_convention=naming_convention))
 migrate = Migrate()
 
 
-def create_app(v):
+def create_app(v="testing"):
     app = Flask(__name__)
 
     config_name = os.getenv("FLASK_ENV") or "development"
