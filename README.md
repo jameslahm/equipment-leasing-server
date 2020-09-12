@@ -1,3 +1,6 @@
+[![codecov](https://codecov.io/gh/jameslahm/equipment-leasing-server/branch/master/graph/badge.svg?token=C6J7838S9J)](https://codecov.io/gh/jameslahm/equipment-leasing-server)
+[![Build Status](https://travis-ci.com/jameslahm/equipment-leasing-server.svg?token=zMepxcNDKbRfwzCYs7iz&branch=master)](https://travis-ci.com/jameslahm/equipment-leasing-server)
+
 ## Install Vscode Extensions
 ```
 pylance
