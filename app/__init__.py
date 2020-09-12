@@ -23,6 +23,8 @@ def create_app():
 
     config_name = os.getenv("FLASK_ENV") or "development"
 
+    print(config_name)
+
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
 
