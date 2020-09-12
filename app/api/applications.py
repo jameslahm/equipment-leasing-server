@@ -3,7 +3,7 @@ from datetime import datetime
 from . import api
 from .. import db
 from ..models import User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
-from ..models import SystemLog,SystemLogContent
+from ..models import SystemLog, SystemLogContent
 # 获取全部申请
 
 
@@ -11,7 +11,7 @@ from ..models import SystemLog,SystemLogContent
 def operate_applications(type):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
-    if not user:
+    if not (user and user.confirmed):
         return jsonify({"error": 'invalid token'}), 401
     if request.method == 'GET':
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
@@ -43,29 +43,29 @@ def operate_applications(type):
         body = request.json
         body['candidate_id'] = user.id
         application = None
-        item=""
-        if type == ApplicationType.APPLY_LENDER:
+        item = ""
+        if type == ApplicationType.APPLY_LENDER and user.role.name == 'normal':
             application = LenderApplication.insert_lender_application(body)
             item = "lender application"
-        elif type == ApplicationType.APPLY_PUTON:
+        elif type == ApplicationType.APPLY_PUTON and user.role.name == 'lender':
             item = "puton application"
             application = EquipmentPutOnApplication.insert_equipment_puton_application(
                 body)
-        elif type == ApplicationType.APPLY_BORROW:
+        elif type == ApplicationType.APPLY_BORROW and user.role.name == 'normal':
             item = "borrow application"
             application = EquipmentBorrowApplication.insert_equipment_borrow_application(
                 body)
         if application is not None:
             log = SystemLog(content=SystemLogContent.INSERT_LOG.format(
-                username = user.username,id = user.id,
-                role = user.role.name, item = item,
-                item_id = application.id
-            ),type='insert',log_time=datetime.now())
+                username=user.username, id=user.id,
+                role=user.role.name, item=item,
+                item_id=application.id
+            ), type='insert', log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200
 
-        return jsonify({'error': 'invalid params'}), 400
+        return jsonify({'error': 'bad request'}), 400
 
 # 获取申请信息
 
@@ -75,15 +75,17 @@ def get_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
     application = None
-    if not user:
+    if not (user and user.confirmed):
         return jsonify({"error": 'invalid token'}), 401
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             application = LenderApplication.query.filter_by(id=id).first()
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
-            application = EquipmentPutOnApplication.query.filter_by(id=id).first()
+            application = EquipmentPutOnApplication.query.filter_by(
+                id=id).first()
         else:  # APPLY_BORROW
-            application = EquipmentBorrowApplication.query.filter_by(id=id).first()
+            application = EquipmentBorrowApplication.query.filter_by(
+                id=id).first()
         if application is not None:
 
             return jsonify(application.to_json()), 200
@@ -95,24 +97,26 @@ def delete_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
     application = None
-    if not user:
+    if not (user and user.confirmed):
         return jsonify({"error": 'invalid token'}), 401
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             item = "lender application"
-            application = LenderApplication.delete_application(id,user)
+            application = LenderApplication.delete_application(id, user)
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
             item = "puton application"
-            application = EquipmentPutOnApplication.delete_application(id,user)
+            application = EquipmentPutOnApplication.delete_application(
+                id, user)
         else:  # APPLY_BORROW
             item = 'borrow application'
-            application = EquipmentBorrowApplication.delete_application(id,user)
+            application = EquipmentBorrowApplication.delete_application(
+                id, user)
         if application is not None:
             log = SystemLog(content=SystemLogContent.DELETE_LOG.format(
-                username = user.username,id = user.id,
-                role = user.role.name, item = item,
-                item_id = application.id
-            ),type='delete',log_time=datetime.now())
+                username=user.username, id=user.id,
+                role=user.role.name, item=item,
+                item_id=application.id
+            ), type='delete', log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200
@@ -127,12 +131,13 @@ def update_application(type, id):
     user = User.verify_auth_token(token)
     application = None
 
-    if not user:
+    if not (user and user.confirmed):
         return jsonify({"error": 401})
     else:
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             item = "lender application"
-            application = LenderApplication.update_application(id, user, request.json)
+            application = LenderApplication.update_application(
+                id, user, request.json)
         elif type == ApplicationType.APPLY_PUTON:  # APPLY_PUTON
             item = "puton application"
             application = EquipmentPutOnApplication.update_application(
@@ -143,10 +148,10 @@ def update_application(type, id):
                 id, user, request.json)
         if application is not None:
             log = SystemLog(content=SystemLogContent.UPDATE_LOG.format(
-                username = user.username,id = user.id,
-                role = user.role.name, item = item,
-                item_id = application.id
-            ),type='update',log_time=datetime.now())
+                username=user.username, id=user.id,
+                role=user.role.name, item=item,
+                item_id=application.id
+            ), type='update', log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200

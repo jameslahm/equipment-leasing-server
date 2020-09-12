@@ -721,6 +721,8 @@ class EquipmentBorrowApplication(db.Model):
         return_time = datetime.fromtimestamp(body.get('return_time')/1000)
         usage = body.get('usage')
         equipment = Equipment.query.filter_by(id=equipment_id).first()
+        if not equipment:
+            return None
         application = EquipmentBorrowApplication(
             equipment_id=equipment_id, return_time=return_time,
             usage=usage, application_time=datetime.now(),
@@ -1036,6 +1038,9 @@ class Comment(db.Model):
             user_id = user_now.id
             content = body.get('content')
             rating = body.get('rating')
+            e=Equipment.query.filter_by(id=equipment_id).first()
+            if not e:
+                return None
             if user_id and content and rating:
                 comment = Comment(user_id=user_id,equipment_id=equipment_id,content=content,rating=rating)
                 db.session.add(comment)
@@ -1075,8 +1080,8 @@ class SystemLog(db.Model):
         if user_now and user_now.role.permission == Permission.ADMIN:
             logs = SystemLog.query
             type = body.get('type')
-            start_time = int(body.get('start_time'))
-            end_time = int(body.get('end_time'))
+            start_time = int(body.get('start_time') or 0)
+            end_time = int(body.get('end_time') or datetime.now().timestamp()*1000)
 
             if type :
                logs = logs.filter_by(type = type) 

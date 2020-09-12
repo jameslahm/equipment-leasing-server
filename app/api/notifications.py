@@ -6,7 +6,7 @@ from ..models import User, Notification
 @api.route('/notifications/<int:id>', methods=['PUT', 'DELETE'])
 def operate_notification(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         if request.method == 'PUT':
             item = Notification.update_notification(id, user, request.json)
             if item is not None:
@@ -23,7 +23,7 @@ def operate_notification(id):
 @api.route('/notifications/<int:id>', methods=['GET'])
 def get_notification(id):
     user = User.verify_auth_token(request.headers.get("Authorization"))
-    if user:
+    if user and user.confirmed:
         notification = Notification.query.filter_by(id=id).first()
         if notification is not None and notification.receiver_id==user.id:
             return jsonify(notification.to_json()), 200
@@ -33,7 +33,7 @@ def get_notification(id):
 @api.route('/notifications', methods=['GET'])
 def get_notifications():
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         items, total = Notification.get_notification(user, request.args)
         if items is not None:
             return jsonify({

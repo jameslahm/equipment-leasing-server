@@ -5,7 +5,7 @@ from . import api
 @api.route('/equipments/<int:id>/comments',methods=['GET'])
 def get_comments(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         equipment_id = id
         body = request.args.to_dict()
         body['equipment_id']=equipment_id
@@ -22,7 +22,7 @@ def get_comments(id):
 @api.route('/equipments/<int:id>/comments',methods =['POST'])
 def add_comment(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:    
+    if user and user.confirmed:    
         comment = Comment.insert_comment(user,id,request.json)
         if comment is not None:
             return jsonify(comment.to_json()),200
@@ -33,7 +33,7 @@ def add_comment(id):
 @api.route('/equipments/<int:id>/comments/<int:comment_id>',methods=['DELETE'])
 def delete_comment(id,comment_id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:    
+    if user and user.confirmed:    
         comment = Comment.delete_comment(comment_id,user)
         if comment is not None:
             return jsonify(comment),200

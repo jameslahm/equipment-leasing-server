@@ -8,7 +8,7 @@ from datetime import datetime
 @api.route('/equipments',methods=['GET'])
 def get_equiments():
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
-    if not current_user:
+    if not (current_user and current_user.confirmed):
         return jsonify({"error":"unauthorized"}), 401
     anslist,total = Equipment.search_equipments(current_user, request.args)
     return jsonify({"equipments":[x.to_json() for x in anslist],"total":total}),200
@@ -17,7 +17,7 @@ def get_equiments():
 @api.route('/equipments/<int:id>',methods=["GET","PUT","DELETE"])
 def equipment_operate(id):
     current_user = User.verify_auth_token(request.headers.get("Authorization"))
-    if not current_user:
+    if not (current_user and current_user.confirmed):
         return jsonify({"error":"unauthorized"}), 401
     if request.method == "GET":
         equipment = Equipment.query.filter_by(id=id).first()

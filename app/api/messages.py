@@ -10,7 +10,7 @@ from sqlalchemy import and_
 @api.route('/messages', methods=['GET'])
 def get_unread_senders():
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         senders = Message.get_unread_senders(user)
         return jsonify({"unread_users": senders}), 200
     return jsonify({'error': 'invalid token'}), 401
@@ -19,7 +19,7 @@ def get_unread_senders():
 @api.route('/messages/<int:id>', methods=['GET'])
 def get_messages(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         messages = Message.get_messages(user, id)
         return jsonify({"messages":[message.to_json() for message in messages]}), 200
     return jsonify({'error': 'invalid token'}), 401
@@ -28,7 +28,7 @@ def get_messages(id):
 @api.route('/messages/<int:id>', methods=['POST'])
 def add_message(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         body = request.json
         body['sender_id'] = user.id
         body['receiver_id'] = id
@@ -43,7 +43,7 @@ def add_message(id):
 @api.route('/messages/<int:id>', methods=['PUT'])
 def update_message(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
-    if user:
+    if user and user.confirmed:
         messages = Message.query.filter_by(
             sender_id=id, receiver_id=user.id, isRead=False).all()
         for message in messages:

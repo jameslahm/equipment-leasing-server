@@ -18,13 +18,15 @@ db = SQLAlchemy(metadata=MetaData(naming_convention=naming_convention))
 migrate = Migrate()
 
 
-def create_app():
+def create_app(v):
     app = Flask(__name__)
 
     config_name = os.getenv("FLASK_ENV") or "development"
 
-    print(config_name)
+    if v == 'testing':
+        config_name=v
 
+    print(config_name)
     app.config.from_object(config[config_name])
     config[config_name].init_app(app)
 
