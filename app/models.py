@@ -45,9 +45,9 @@ class ApplicationType:
     APPLY_RETURN = 'return'
 
 class SystemLogContent:
-    INSERT_LOG = "{username}(id:{id},role:{role}) added  a {item} (id={item_id}) "
-    UPDATE_LOG = "{username}(id:{id},role:{role}) updated a {item} (id={item_id})"
-    DELETE_LOG = "{username}(id:{id},role:{role}) deleted a {item} (id={item_id})"
+    INSERT_LOG = "{username} (id={id},role={role}) added  a {item} (id={item_id}) "
+    UPDATE_LOG = "{username} (id={id},role={role}) updated a {item} (id={item_id})"
+    DELETE_LOG = "{username} (id={id},role={role}) deleted a {item} (id={item_id})"
 
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -1074,6 +1074,19 @@ class SystemLog(db.Model):
     def get_logs(user_now,body):
         if user_now and user_now.role.permission == Permission.ADMIN:
             logs = SystemLog.query
+            type = body.get('type')
+            start_time = int(body.get('start_time'))
+            end_time = int(body.get('end time'))
+
+            if type :
+               logs = logs.filter_by(type = type) 
+            if start_time :
+                start_time = datetime.fromtimestamp(start_time/1000)
+                logs = logs.filter(SystemLog.log_time > start_time)
+            if end_time :
+                end_time = datetime.fromtimestamp(end_time/1000)
+                logs = logs.filter(SystemLog.log_time < end_time)
+            
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = logs.paginate(
