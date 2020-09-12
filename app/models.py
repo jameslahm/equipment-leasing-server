@@ -335,14 +335,17 @@ class Equipment(db.Model):
                 if body.get('confirmed_back') == True:
                     equipment.confirmed_back = True
                     equipment.status = EquipmentStatus.IDLE
-                db.session.commit()
+                    db.session.commit()
                 return equipment
             else:
                 if equipment:
                     borrower = EquipmentBorrowApplication.query.filter_by(
                         id=equipment.current_application_id).first().candidate
                     if borrower.id == user_now.id:
+                        notification = Notification(type=ApplicationType.APPLY_RETURN, sender_id=borrower.id,
+                                                    receiver_id=equipment.owner_id, application_id=equipment.current_application_id)
                         equipment.current_application_id = None
+                        db.session.add(notification)
                         db.session.commit()
                         return equipment
                 return None
@@ -897,7 +900,7 @@ class Notification(db.Model):
 
     def to_json(self):
         application = None
-        if self.type == ApplicationType.APPLY_BORROW:
+        if self.type == ApplicationType.APPLY_BORROW or ApplicationType.APPLY_RETURN:
             application = EquipmentBorrowApplication.query.filter(
                 EquipmentBorrowApplication.id == self.application_id
             ).first()
