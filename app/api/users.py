@@ -126,7 +126,7 @@ def operate_user(id):
             log = SystemLog(content=SystemLogContent.DELETE_LOG.format(
                 username = operator.username,id = operator.id,
                 role = operator.role.name, item =" User",
-                item_id = user.id
+                item_id = user["id"]
             ),type='delete',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
