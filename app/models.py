@@ -1098,6 +1098,7 @@ class SystemLog(db.Model):
                 end_time = datetime.fromtimestamp(end_time/1000)
                 logs = logs.filter(SystemLog.log_time < end_time)
             
+            logs=logs.order_by(SystemLog.log_time.desc())
             page = int(body['page'])+1 if body.get('page') else 1
             page_size = int(body['page_size']) if body.get('page_size') else 10
             pa = logs.paginate(
