@@ -1098,6 +1098,8 @@ class Message(db.Model):
             "id": self.id,
             "content": self.content,
             "message_time": self.message_time.timestamp()*1000,
+            "sender_id":self.sender_id,
+            "receiver_id":self.receiver_id
         }
         return json_message
     
@@ -1125,7 +1127,7 @@ class Message(db.Model):
                     'total': 1
                 }
 
-        return body.values()
+        return list(body.values())
     
     @staticmethod
     def insert_message(user,body):
@@ -1134,7 +1136,7 @@ class Message(db.Model):
         if content and receiver_id:
             message= Message(content=content,receiver_id=receiver_id,sender_id=user.id,message_time=datetime.now())
             db.session.add(message)
-            db.session.commmit()
+            db.session.commit()
             return message
-            
+        
         return None

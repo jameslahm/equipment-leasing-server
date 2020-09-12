@@ -14,7 +14,7 @@ def get_unread_senders():
         return jsonify(senders),200
     return jsonify({'error': 'invalid token'}), 401    
 
-@api.route('/messages/:id',methods=['GET'])
+@api.route('/messages/<int:id>',methods=['GET'])
 def get_messages(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
     if user:
@@ -22,7 +22,7 @@ def get_messages(id):
         return jsonify([message.to_json() for message in messages]),200
     return jsonify({'error': 'invalid token'}), 401    
 
-@api.route('/messages/:id',methods=['POST'])
+@api.route('/messages/<int:id>',methods=['POST'])
 def add_message(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
     if user:
@@ -36,7 +36,7 @@ def add_message(id):
             return jsonify({'error':'insert error'}),404            
     return jsonify({'error': 'invalid token'}), 401    
 
-@api.route('/messages/:id',methods=['PUT'])
+@api.route('/messages/<int:id>',methods=['PUT'])
 def update_message(id):
     user = User.verify_auth_token(request.headers.get('Authorization'))
     if user:
