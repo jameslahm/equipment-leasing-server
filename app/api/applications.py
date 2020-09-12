@@ -134,6 +134,7 @@ def update_application(type, id):
     if not (user and user.confirmed):
         return jsonify({"error": 401})
     else:
+        item=""
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             item = "lender application"
             application = LenderApplication.query.filter_by(id=id).first()
