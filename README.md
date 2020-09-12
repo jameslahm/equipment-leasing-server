@@ -49,4 +49,5 @@ see https://www.conventionalcommits.org/en/v1.0.0/
 
 see http://www.ruanyifeng.com/blog/2016/01/commit_message_change_log.html
 
+## Other
 flask-sqlalchemy-stubs==0.0.1
