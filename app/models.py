@@ -55,7 +55,7 @@ class Role(db.Model):
     permission = db.Column('permission',
                            db.Integer,
                            unique=False)
-    name = db.Column('name', db.Integer, unique=True)
+    name = db.Column('name',db.String(64), unique=True)
     users = db.relationship('User', backref='role', lazy='dynamic')
 
     @staticmethod
@@ -81,7 +81,7 @@ class User(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey(
         'roles.id'))
     password_hash = db.Column(
-        'password_hash', db.String(64))
+        'password_hash', db.String(128))
     confirmed = db.Column('confirmed', db.Boolean, default=False)
     avatar = db.Column('avatar', db.String(128))
     equipments = db.relationship('Equipment', backref='owner',

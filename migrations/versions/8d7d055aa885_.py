@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 60258b679398
+Revision ID: 8d7d055aa885
 Revises: 
-Create Date: 2020-09-12 16:00:56.690503
+Create Date: 2020-09-12 18:54:06.293672
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '60258b679398'
+revision = '8d7d055aa885'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -21,7 +21,7 @@ def upgrade():
     op.create_table('roles',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('permission', sa.Integer(), nullable=True),
-    sa.Column('name', sa.Integer(), nullable=True),
+    sa.Column('name', sa.String(length=64), nullable=True),
     sa.PrimaryKeyConstraint('id', name=op.f('pk_roles')),
     sa.UniqueConstraint('name', name=op.f('uq_roles_name'))
     )
@@ -37,7 +37,7 @@ def upgrade():
     sa.Column('email', sa.String(length=64), nullable=True),
     sa.Column('username', sa.String(length=64), nullable=True),
     sa.Column('role_id', sa.Integer(), nullable=True),
-    sa.Column('password_hash', sa.String(length=64), nullable=True),
+    sa.Column('password_hash', sa.String(length=128), nullable=True),
     sa.Column('confirmed', sa.Boolean(), nullable=True),
     sa.Column('avatar', sa.String(length=128), nullable=True),
     sa.Column('lab_name', sa.String(length=64), nullable=True),

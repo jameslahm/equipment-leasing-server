@@ -13,6 +13,7 @@ def init_app(app):
 @with_appcontext
 def init_db_command():
     """Clear the existing data and create new tables."""
+    # db.create_all()
     Role.insert_roles()
     admin = User(email=current_app.config["FLASK_ADMIN"],
                  password="secure", username="zhangzhi_up", confirmed=True)
