@@ -1,10 +1,9 @@
-from sqlalchemy.sql.expression import false
 from . import db
 from flask import current_app
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
 from itsdangerous import TimedJSONWebSignatureSerializer
-
+from sqlalchemy import or_,and_
 
 class Permission:
     NORMAL = 0x01
@@ -1061,12 +1060,13 @@ class SystemLog(db.Model):
     id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
     content = db.Column('content', db.String(64))
     type = db.Column('type',db.String(64))
-
+    log_time = db.Column('log_time',db.DateTime)
     def to_json(self):
         json_log = {
             "id":self.id,
             "content":self.content,
-            "type":self.type
+            "type":self.type,
+            "log_time":self.log_time.timestamp()*1000
         }
         return json_log
     
@@ -1080,4 +1080,61 @@ class SystemLog(db.Model):
                 page, page_size, error_out=False
             )
             return pa.items,pa.total            
+        return None
+
+class Message(db.Model):
+    __tablename__ = 'messages'
+    id = db.Column('id', db.Integer, primary_key=True, autoincrement=True)
+    content = db.Column('content', db.String(128))
+    sender_id = db.Column('sender_id', db.Integer,
+                          db.ForeignKey('users.id'))
+    receiver_id = db.Column('receiver_id', db.Integer,
+                            db.ForeignKey('users.id'))
+    message_time = db.Column('message_time',db.DateTime)
+    isRead = db.Column('isRead',db.Boolean,default=False)
+
+    def to_json(self):
+        json_message = {
+            "id": self.id,
+            "content": self.content,
+            "message_time": self.message_time.timestamp()*1000,
+        }
+        return json_message
+    
+    @staticmethod
+    def get_messages(user,sender_id):
+        messages = Message.query.filter(and_(
+            Message.sender_id==sender_id,Message.receiver_id==user.id,Message.isRead==False
+        )).all()
+        return messages
+
+    @staticmethod
+    def get_unread_senders(user):
+        messages = Message.query.filter(and_(
+            Message.receiver_id==user.id,Message.isRead==False
+        )).all()
+        body = dict()
+        for x in messages:
+            if body.get(str(x.sender_id)):
+                body[str(x.sender_id)]['total'] +=1
+            else:
+                body[str(x.sender_id)]={
+                    'id':x.sender_id,
+                    'username': User.query.filter_by(id=x.sender_id).first().username,
+                    'avatar': User.query.filter_by(id = x.sender_id).first().avatar,
+                    'total': 1
+                }
+
+        return body.values()
+    
+    @staticmethod
+    def insert_message(user,body):
+        content = body.get('content')
+        receiver_id = body.get('receiver_id')
+        if content and receiver_id:
+            message= Message(content=content,receiver_id=receiver_id,sender_id=user.id,message_time=datetime.now())
+            db.session.add(message)
+            db.session.commmit()
+            return message
+            
         return None

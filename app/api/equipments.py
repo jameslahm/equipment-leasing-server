@@ -4,6 +4,7 @@ from ..models import Equipment,User
 from . import api
 from ..models import SystemLog,SystemLogContent
 from .. import db
+from datetime import datetime
 
 @api.route('/equipments',methods=['GET'])
 def get_equiments():
@@ -32,7 +33,7 @@ def equipment_operate(id):
             username = current_user.username,id = current_user.id,
             role = current_user.role.name, item ="equipment",
             item_id = update.id
-        ),type='update')
+        ),type='update',log_time=datetime.now())
         db.session.add(log)
         db.session.commit()
         return jsonify(update.to_json()),200
@@ -44,7 +45,7 @@ def equipment_operate(id):
             username = current_user.username,id = current_user.id,
             role = current_user.role.name, item ="equipment",
             item_id = delete['id']
-        ),type='delete')
+        ),type='delete',log_time=datetime.now())
         db.session.add(log)
         db.session.commit()
         return jsonify(delete),200

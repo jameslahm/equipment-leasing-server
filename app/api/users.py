@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import jsonify, request
 from flask import request
 from flask import current_app
@@ -75,7 +76,7 @@ def confirm():
         jwt = user.generate_auth_token(expiration=86400*365)
         user_comfirmed = user.to_json()
         user_comfirmed['token'] = jwt
-        log = SystemLog(content="new user register id:{}".format(user.id),type='insert')
+        log = SystemLog(content="new user register id:{}".format(user.id),type='insert',log_time=datetime.now())
         db.session.add(log)
         db.session.commit()
         return jsonify(user_comfirmed), 200
@@ -113,7 +114,7 @@ def operate_user(id):
                 username = operator.username,id = operator.id,
                 role = operator.role.name, item =" User's info",
                 item_id = user.id
-            ),type='update')
+            ),type='update',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(user.to_json()), 200
@@ -125,7 +126,7 @@ def operate_user(id):
                 username = operator.username,id = operator.id,
                 role = operator.role.name, item =" User",
                 item_id = user.id
-            ),type='delete')
+            ),type='delete',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(user), 200

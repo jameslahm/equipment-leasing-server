@@ -1,4 +1,5 @@
 from flask import request, jsonify
+from datetime import datetime
 from . import api
 from .. import db
 from ..models import User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
@@ -59,7 +60,7 @@ def operate_applications(type):
                 username = user.username,id = user.id,
                 role = user.role.name, item = item,
                 item_id = application.id
-            ),type='insert')
+            ),type='insert',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200
@@ -111,7 +112,7 @@ def delete_application(type, id):
                 username = user.username,id = user.id,
                 role = user.role.name, item = item,
                 item_id = application.id
-            ),type='delete')
+            ),type='delete',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200
@@ -145,7 +146,7 @@ def update_application(type, id):
                 username = user.username,id = user.id,
                 role = user.role.name, item = item,
                 item_id = application.id
-            ),type='update')
+            ),type='update',log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
             return jsonify(application.to_json()), 200
