@@ -130,7 +130,7 @@ def update_application(type, id):
     token = request.headers.get("Authorization")
     user = User.verify_auth_token(token)
     application = None
-
+    old_status = None
     if not (user and user.confirmed):
         return jsonify({"error": 401})
     else:
@@ -167,10 +167,15 @@ def update_application(type, id):
 
             if application and (application.reviewer_id != user.id and user.role.name != 'admin'):
                 return jsonify({"error": "bad request"}), 400
-
+            if application:
+                old_status =application.status
             application = EquipmentBorrowApplication.update_application(
                 id, user, request.json)
+                
         if application is not None:
+            db.session.commit()
+            if old_status != request.json['status'] and old_status == application.status:
+                return jsonify({'error':"can't update status"},400)
             log = SystemLog(content=SystemLogContent.UPDATE_LOG.format(
                 username=user.username, id=user.id,
                 role=user.role.name, item=item,

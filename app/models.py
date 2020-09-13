@@ -744,17 +744,22 @@ class EquipmentBorrowApplication(db.Model):
 
     @staticmethod
     def on_changed_status(target, value, oldvalue, initiator):
+        equipment = Equipment.query.filter_by(
+            id=target.equipment_id).first()
+
+        if value == ApplicationStatus.AGREE:
+            if equipment.status == EquipmentStatus.LEASE:
+                target.status = oldvalue
+                return 
+            equipment.confirmed_back = False
+            equipment.current_application_id = target.id
+            equipment.status = EquipmentStatus.LEASE
+            
         notification = Notification(type=ApplicationType.APPLY_BORROW, sender_id=target.reviewer_id,
                                     receiver_id=target.candidate_id, application_id=target.id)
         db.session.add(notification)
         db.session.commit()
-        if value == ApplicationStatus.AGREE:
-            equipment = Equipment.query.filter_by(
-                id=target.equipment_id).first()
-            equipment.confirmed_back = False
-            equipment.current_application_id = target.id
-            equipment.status = EquipmentStatus.LEASE
-
+    
     @staticmethod
     def get_application(user_now, body):
         if user_now:
