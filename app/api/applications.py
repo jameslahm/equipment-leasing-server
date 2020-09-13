@@ -119,7 +119,7 @@ def delete_application(type, id):
             ), type='delete', log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
-            return jsonify(application.to_json()), 200
+            return jsonify(application), 200
         return jsonify({'error': 'no such application'}), 404
 
 # 更新申请信息

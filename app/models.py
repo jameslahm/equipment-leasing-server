@@ -696,8 +696,8 @@ class EquipmentBorrowApplication(db.Model):
             'reviewer': {
                 'username': self.reviewer.username,
                 'email': self.reviewer.email,
-                'lab_name': self.reviewer.lab_name,
-                'lab_location': self.reviewer.lab_location,
+                'lab_name': self.equipment.owner.lab_name,
+                'lab_location': self.equipment.owner.lab_location,
                 'id': self.reviewer_id
             },
             'equipment': {
@@ -810,9 +810,9 @@ class EquipmentBorrowApplication(db.Model):
                 EquipmentBorrowApplication.id == id).first()
             if not application:
                 return None
-            application.status = body.get('status')
             application.reviewer_id = user_now.id
             application.review_time = datetime.now()
+            application.status = body.get('status')
             db.session.commit()
             return application
         return None
