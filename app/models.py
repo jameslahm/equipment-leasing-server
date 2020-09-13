@@ -748,9 +748,6 @@ class EquipmentBorrowApplication(db.Model):
             id=target.equipment_id).first()
 
         if value == ApplicationStatus.AGREE:
-            if equipment.status == EquipmentStatus.LEASE:
-                target.status = oldvalue
-                return 
             equipment.confirmed_back = False
             equipment.current_application_id = target.id
             equipment.status = EquipmentStatus.LEASE

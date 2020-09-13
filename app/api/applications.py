@@ -2,7 +2,7 @@ from flask import request, jsonify
 from datetime import datetime
 from . import api
 from .. import db
-from ..models import ApplicationStatus, User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
+from ..models import ApplicationStatus, Equipment, EquipmentStatus, User, ApplicationType, LenderApplication, EquipmentPutOnApplication, EquipmentBorrowApplication
 from ..models import SystemLog, SystemLogContent
 # 获取全部申请
 
@@ -134,7 +134,7 @@ def update_application(type, id):
     if not (user and user.confirmed):
         return jsonify({"error": 401})
     else:
-        item=""
+        item = ""
         if type == ApplicationType.APPLY_LENDER:  # APPLY_LENDER
             item = "lender application"
             application = LenderApplication.query.filter_by(id=id).first()
@@ -150,6 +150,7 @@ def update_application(type, id):
             item = "puton application"
             application = EquipmentPutOnApplication.query.filter_by(
                 id=id).first()
+
             if application and application.status != ApplicationStatus.UNREVIEWED:
                 return jsonify({"error": "bad request"}), 400
 
@@ -162,20 +163,24 @@ def update_application(type, id):
             item = "borrow application"
             application = EquipmentBorrowApplication.query.filter_by(
                 id=id).first()
+
+            if not application:
+               return jsonify({'error': 'no such application'}), 404 
+
             if application and application.status != ApplicationStatus.UNREVIEWED:
                 return jsonify({"error": "bad request"}), 400
 
             if application and (application.reviewer_id != user.id and user.role.name != 'admin'):
                 return jsonify({"error": "bad request"}), 400
-            if application:
-                old_status =application.status
+
+            equipment = Equipment.query.filter_by(
+                id=application.equipment_id).first()
+            if equipment.status == EquipmentStatus.LEASE and request.json.get('status') == ApplicationStatus.AGREE:
+                return jsonify({"error": "bad request"}), 400
+
             application = EquipmentBorrowApplication.update_application(
                 id, user, request.json)
-                
         if application is not None:
-            db.session.commit()
-            if old_status != request.json['status'] and old_status == application.status:
-                return jsonify({'error':"can't update status"},400)
             log = SystemLog(content=SystemLogContent.UPDATE_LOG.format(
                 username=user.username, id=user.id,
                 role=user.role.name, item=item,
