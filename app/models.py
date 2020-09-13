@@ -826,6 +826,8 @@ class EquipmentBorrowApplication(db.Model):
             db.session.delete(application)
             Notification.query.filter_by(
                 type='borrow', application_id=id).delete()
+            Notification.query.filter_by(
+                type='return', application_id=id).delete()
             db.session.commit()
             return res
         else:
@@ -835,6 +837,8 @@ class EquipmentBorrowApplication(db.Model):
     def on_delete(mapper, connection, target):
         Notification.query.filter_by(
             type='borrow', application_id=target.id).delete()
+        Notification.query.filter_by(
+                type='return', application_id=target.id).delete()
         # db.session.commit()
 
 

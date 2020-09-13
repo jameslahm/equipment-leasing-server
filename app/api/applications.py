@@ -115,7 +115,7 @@ def delete_application(type, id):
             log = SystemLog(content=SystemLogContent.DELETE_LOG.format(
                 username=user.username, id=user.id,
                 role=user.role.name, item=item,
-                item_id=application.id
+                item_id=application["id"]
             ), type='delete', log_time=datetime.now())
             db.session.add(log)
             db.session.commit()
