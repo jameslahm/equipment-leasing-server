@@ -5,7 +5,9 @@
   "repository": "git@github.com:jameslahm/equipment-leasing-server.git",
   "author": "wangao <1366463855@qq.com>",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "archive": "git archive -o server.zip --format zip HEAD"
+  },
   "husky": {
     "hooks": {
       "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
